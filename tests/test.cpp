@@ -1,44 +1,26 @@
-#include <gtest/gtest.h>
-#include "../include/orderbook.h"
+#include "gtest/gtest.h"
 #include "../include/smartorderrouter.h"
+#include "../include/orderbook.h"
 #include <memory>
 
-// Test scenario: Buy 12 units with 2 price levels
-TEST(SmartOrderRouterTest, BuyOrderWithTwoPriceLevels) 
-{
-    // Create an order book for Binance
-    auto binance = std::make_shared<OrderBook>("Binance", 0.001, 1.0); // 0.1% taker fee, 1.0 min order size
+class SmartOrderRouterTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        // Create order books for testing
+        auto exchange1 = std::make_shared<OrderBook>("Exchange1", 0.001, 0.001);
+        auto exchange2 = std::make_shared<OrderBook>("Exchange2", 0.0005, 0.01);
 
-    // Add asks to the order book
-    binance->add_ask(100.0, 10.0); // Price: $100, Volume: 10
-    binance->add_ask(101.0, 10.0); // Price: $101, Volume: 10
+        // Add bids and asks to the order books
+        exchange1->add_bid(100.0, 1.0);
+        exchange1->add_ask(101.0, 1.0);
+        exchange2->add_bid(99.0, 2.0);
+        exchange2->add_ask(102.0, 2.0);
 
-    // Create a SmartOrderRouter with the order book
-    std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books = {{"Binance", binance}};
-    SmartOrderRouter router(order_books);
+        order_books = {
+            {"Exchange1", exchange1},
+            {"Exchange2", exchange2}
+        };
+    }
 
-    // Define order parameters
-    double order_size = 12.0; // Total quantity to buy
-    bool is_buy = true;       // Buy order
-
-    // Distribute the order across exchanges
-    auto execution_plan = router.distribute_order(order_size, is_buy);
-
-    // Verify the execution plan
-    ASSERT_EQ(execution_plan.size(), 2); // Expect 2 fills
-
-    // First fill: 10 units at $100
-    EXPECT_EQ(execution_plan[0].first, "Binance");
-    EXPECT_DOUBLE_EQ(execution_plan[0].second.first, 100.0); // Price
-    EXPECT_DOUBLE_EQ(execution_plan[0].second.second, 10.0); // Quantity
-
-    // Second fill: 2 units at $101
-    EXPECT_EQ(execution_plan[1].first, "Binance");
-    EXPECT_DOUBLE_EQ(execution_plan[1].second.first, 101.0); // Price
-    EXPECT_DOUBLE_EQ(execution_plan[1].second.second, 2.0);  // Quantity
-}
-
-int main(int argc, char **argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+    std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books;
+};

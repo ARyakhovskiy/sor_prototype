@@ -1,16 +1,25 @@
-#include "../include/smartorderrouter.h"
+// greedy_order_distribution.cpp
+#include "orderbook.h"
+#include <unordered_map>
+#include <queue>
+#include <vector>
+#include <string>
+#include <functional>
+#include <memory>
+#include <limits>
+#include <iostream>
+#include <iomanip>
 
-
-SmartOrderRouter::SmartOrderRouter(const std::unordered_map<std::string, std::shared_ptr<OrderBook>>& order_books)
-    : order_books(order_books) {}
 
 Price effective_price(Price original_price, bool is_buy, double fee)
 {
     return is_buy ? original_price * (1 + fee) : original_price * (1 - fee);
 }
 
-ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy) const
- {
+std::vector<std::pair<std::string, std::pair<Price, Volume>>> GreedyOrderDistribution::distribute_order(const std::unordered_map<std::string, std::shared_ptr<OrderBook>>& order_books,
+                                                                                                        double order_size,
+                                                                                                        bool is_buy) const 
+{
     std::vector<std::pair<std::string, std::pair<Price, Volume>>> execution_plan;
     Volume remaining_size = order_size;
     double total_fees = 0.0;
@@ -27,9 +36,8 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
     }
 
     std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator> best_orders(comparator);
-    std::cout << "Initial Order: Size = " << order_size << ", Type = " << (is_buy ? "Buy" : "Sell") << std::endl;
 
-    Volume absoluteMinLotSize = order_size;
+    std::cout << "Initial Order: Size = " << order_size << ", Type = " << (is_buy ? "Buy" : "Sell") << std::endl;
 
     // Initialize the priority queue with the best orders from each exchange
     for (const auto& [exchange_name, order_book] : order_books) 
@@ -42,8 +50,6 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
             Price price = best_order->first;
             Volume volume = best_order->second;
             double fee = order_book->get_taker_fee();
-            
-            absoluteMinLotSize = std::min(absoluteMinLotSize, order_book->get_min_order_size());
 
             // Add to the priority queue
             best_orders.push({exchange_name, effective_price(price, is_buy, fee), volume, price, fee});
@@ -57,7 +63,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
         }
     }
 
-    while (remaining_size > absoluteMinLotSize && !best_orders.empty()) 
+    while (remaining_size > 0 && !best_orders.empty()) 
     {
         // Debug output: Print the current state of the priority queue
         std::cout << "\nCurrent state of best_orders queue:" << std::endl;
@@ -148,5 +154,5 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
     // Print total fees
     std::cout << "Total Fees Paid: " << std::fixed << std::setprecision(2) << total_fees << std::endl;
 
-    return ExecutionPlan(execution_plan, order_books, is_buy, order_size);
+    return execution_plan;
 }

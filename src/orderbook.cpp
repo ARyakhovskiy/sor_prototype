@@ -5,16 +5,20 @@
 OrderBook::OrderBook(const std::string& exchange_name, double taker_fee, double min_order_size)
     : exchange_name(exchange_name), taker_fee(taker_fee), min_order_size(min_order_size) {}
 
-void OrderBook::add_bid(Price price, Volume volume) {
+void OrderBook::add_bid(Price price, Volume volume) 
+{
     bids[price] += volume; // Aggregate volumes at the same price
 }
 
-void OrderBook::add_ask(Price price, Volume volume) {
+void OrderBook::add_ask(Price price, Volume volume) 
+{
     asks[price] += volume; // Aggregate volumes at the same price
 }
 
-void OrderBook::remove_top_bid() {
-    if (!bids.empty()) {
+void OrderBook::remove_top_bid() 
+{
+    if (!bids.empty()) 
+    {
         bids.erase(--bids.end());
     } else 
     {
@@ -23,7 +27,8 @@ void OrderBook::remove_top_bid() {
 }
 
 void OrderBook::remove_top_ask() {
-    if (!asks.empty()) {
+    if (!asks.empty()) 
+    {
         asks.erase(asks.begin());
     }
     else 
@@ -32,15 +37,18 @@ void OrderBook::remove_top_ask() {
     }
 }
 
-std::pair<Price, Volume> OrderBook::get_best_bid() const {
-    if (bids.empty()) {
+std::pair<Price, Volume> OrderBook::get_best_bid() const 
+{
+    if (bids.empty()) 
+    {
         return {0.0, 0.0}; // No bids available
     }
     return *bids.rbegin(); // Last element in the map
 }
 
 std::pair<Price, Volume> OrderBook::get_best_ask() const {
-    if (asks.empty()) {
+    if (asks.empty()) 
+    {
         return {0.0, 0.0}; // No asks available
     }
     return *asks.begin(); // First element in the map

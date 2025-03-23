@@ -1,6 +1,7 @@
 #ifndef SMARTORDERROUTER_H
 #define SMARTORDERROUTER_H
 
+#include "executionplan.h"
 #include "orderbook.h"
 #include <unordered_map>
 #include <queue>
@@ -12,12 +13,13 @@
 #include <iostream>
 #include <iomanip>
 
+
 struct BestOrder {
     std::string exchange_name;
-    Price effective_price; // Price after fees
+    Price effective_price;
     Volume volume;
-    Price original_price;  // Original price before fees
-    double fee;             // Taker fee for the exchange
+    Price original_price; 
+    double fee;             
 
     // Comparator for buy orders (lowest effective price first)
     struct BuyComparator 
@@ -36,16 +38,16 @@ struct BestOrder {
     };
 };
 
-class SmartOrderRouter {
+class SmartOrderRouter 
+{
 private:
-    std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books; // Maps exchange name to OrderBook
+    std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books; // Maps exchange name to OrderBook;
 
 public:
     SmartOrderRouter(const std::unordered_map<std::string, std::shared_ptr<OrderBook>>& order_books);
 
     // Function to distribute an order across exchanges
-    std::vector<std::pair<std::string, std::pair<double, double>>> distribute_order(double order_size, bool is_buy) const;
-   
+    ExecutionPlan distribute_order(Volume order_size, bool is_buy) const;
 };
 
 #endif // SMARTORDERROUTER_H

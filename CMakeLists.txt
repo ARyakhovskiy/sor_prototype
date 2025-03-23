@@ -9,7 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(src)
 
 # Add the main executable
-add_executable(smart_order_routing src/main.cpp src/orderbook.cpp src/smartorderrouter.cpp)
+add_executable(smart_order_routing 
+    src/main.cpp
+    src/orderbook.cpp
+    src/smartorderrouter.cpp
+    src/executionplan.cpp
+    )
 
 # Add the tests
 add_subdirectory(tests)
