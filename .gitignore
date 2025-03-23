@@ -1,0 +1,52 @@
+# Ignore build directories
+build/
+out/
+bin/
+obj/
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+*.suo
+*.user
+*.sln
+*.vcxproj*
+*.filters
+*.opensdf
+*.sdf
+
+# Ignore compiled binaries and libraries
+*.exe
+*.out
+*.a
+*.so
+*.dylib
+*.dll
+*.lib
+
+# Ignore logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Ignore dependency directories
+deps/
+third_party/
+
+# Ignore macOS-specific files
+.DS_Store
+
+# Ignore local development files
+.env
+*.local
+
+# Ignore coverage files
+*.gcda
+*.gcno
+*.gcov
+
+# Ignore documentation build files
+docs/_build/
+docs/html/
+docs/latex/
