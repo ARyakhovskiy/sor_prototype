@@ -44,8 +44,11 @@ private:
     std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books; // Maps exchange name to OrderBook;
 
 public:
-    SmartOrderRouter(const std::unordered_map<std::string, std::shared_ptr<OrderBook>>& order_books);
+    // Constructor
+    SmartOrderRouter(std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books);
 
+    // Move constructor
+    SmartOrderRouter(SmartOrderRouter&& other) noexcept;
     // Function to distribute an order across exchanges
     ExecutionPlan distribute_order(Volume order_size, bool is_buy) const;
 };

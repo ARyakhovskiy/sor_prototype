@@ -69,15 +69,32 @@ int main()
         {"OKX", okx},
         {"Uniswap", uniswap}
     };
-    SmartOrderRouter router(order_books);
+    
+    SmartOrderRouter router(std::move(order_books));
 
-    // Define order parameters
-    Volume order_size = 1.0; // Total quantity to buy/sell
-    bool is_buy = false;      // Set to false for a sell order
+    while (true) 
+    {
+        double order_size;
+        std::cout << "Enter the number of units to buy (positive) or sell (negative). Enter 0 to exit: ";
+        std::cin >> order_size;
 
-    // Distribute the order using the greedy algorithm
-    ExecutionPlan execution_plan = router.distribute_order(order_size, is_buy);
+        if (std::cin.fail()) {
+            std::cerr << "Invalid input. Please enter a number." << std::endl;
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            continue;
+        }
 
-    // Print the execution plan and metrics
-    execution_plan.print();
+        if (order_size == 0) {
+            std::cout << "Exiting the program." << std::endl;
+            break;
+        }
+
+        bool is_buy = (order_size > 0);
+
+        ExecutionPlan execution_plan = router.distribute_order(std::abs(order_size), is_buy);
+
+        execution_plan.print();
+    }
+
 }

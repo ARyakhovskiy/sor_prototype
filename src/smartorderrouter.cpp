@@ -1,8 +1,14 @@
 #include "../include/smartorderrouter.h"
 
+constexpr double EPSILON = 1e-12;
 
-SmartOrderRouter::SmartOrderRouter(const std::unordered_map<std::string, std::shared_ptr<OrderBook>>& order_books)
-    : order_books(order_books) {}
+// Constructor
+SmartOrderRouter::SmartOrderRouter(std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books)
+    : order_books(std::move(order_books)) {}
+
+// Move constructor
+SmartOrderRouter::SmartOrderRouter(SmartOrderRouter&& other) noexcept
+    : order_books(std::move(other.order_books)) {}
 
 Price effective_price(Price original_price, bool is_buy, double fee)
 {
@@ -10,7 +16,7 @@ Price effective_price(Price original_price, bool is_buy, double fee)
 }
 
 ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy) const
- {
+{
     std::vector<std::pair<std::string, std::pair<Price, Volume>>> execution_plan;
     Volume remaining_size = order_size;
     double total_fees = 0.0;
@@ -57,7 +63,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
         }
     }
 
-    while (remaining_size > absoluteMinLotSize && !best_orders.empty()) 
+    while (remaining_size >= absoluteMinLotSize && !best_orders.empty()) 
     {
         // Debug output: Print the current state of the priority queue
         std::cout << "\nCurrent state of best_orders queue:" << std::endl;
@@ -86,10 +92,13 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
 
         // Calculate the quantity to take from this exchange
         double fill_quantity = std::min(best_order.volume, remaining_size);
-
         // Ensure the fill quantity is a multiple of the minimum order size
         double min_order_size = order_books.at(best_order.exchange_name)->get_min_order_size();
-        fill_quantity = std::floor(fill_quantity / min_order_size) * min_order_size;
+
+        fill_quantity = std::floor((fill_quantity / min_order_size) +EPSILON) * min_order_size; // necessary to avoid truncation error 
+
+        //fill_quantity = std::min(fill_quantity, remaining_size);
+
 
         if (fill_quantity > 0) 
         {
@@ -106,7 +115,6 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
             remaining_size -= fill_quantity;
             std::cout << "Remaining size to fill: " << remaining_size << std::endl;
         }
-
         else 
         {
             std::cout << "Skipping order from " << best_order.exchange_name
@@ -127,7 +135,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
 
         // Add the next best order from the same exchange (if available)
         const auto& order_side = is_buy ? order_book->get_asks() : order_book->get_bids();
-        if (!order_side.empty()) 
+        if (!order_side.empty() && order_book->get_min_order_size() <= remaining_size) 
         {
             auto next_order = is_buy ? order_side.begin() : std::prev(order_side.end());
             Price price = next_order->first;
