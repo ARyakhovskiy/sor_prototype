@@ -25,4 +25,4 @@ add_subdirectory(tests)
 enable_testing()
 
 # Add the test to CTest
-add_test(NAME tests COMMAND tests)
+add_test(NAME sor_tests COMMAND sor_tests)

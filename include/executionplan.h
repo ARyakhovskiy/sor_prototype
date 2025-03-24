@@ -10,20 +10,20 @@
 #include <iostream>
 #include "orderbook.h"
 
-
 using FillOrder = std::pair<ExchangeName, std::pair<Price, Volume>>;
 
-class ExecutionPlan {
+class ExecutionPlan 
+{
 private:
-    std::vector<FillOrder> plan;
-    std::unordered_map<std::string, std::shared_ptr<class OrderBook>> order_books;
-    bool is_buy;
-    Volume original_order_size;
+    std::vector<FillOrder> m_plan;
+    std::shared_ptr<const std::unordered_map<std::string, std::shared_ptr<class OrderBook>>> m_order_books;
+    bool m_is_buy;
+    Volume m_original_order_size;
 
 public:
     // Constructor
     ExecutionPlan(const std::vector<FillOrder>& plan,
-                const std::unordered_map<std::string, std::shared_ptr<class OrderBook>>& order_books,
+                std::shared_ptr<const std::unordered_map<std::string, std::shared_ptr<class OrderBook>>> order_books,
                 bool is_buy,
                 double original_order_size);
 

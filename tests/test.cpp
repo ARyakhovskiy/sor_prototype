@@ -60,3 +60,72 @@ TEST(SmartOrderRouterTest, SingleExchangeTwoPriceLevels) {
     double expected_fees = (10.0 * 100.0 * 0.001) + (2.0 * 101.0 * 0.001); // Fees for both fills
     EXPECT_NEAR(execution_plan.get_total_fees(), expected_fees, 1e-6);
 }
+
+// Test case where DP phase dominates due to large minLotSizes
+TEST(SmartOrderRouterTest, DynamicProgrammingPhaseDominates) {
+    // Create order books with large minimum order sizes
+    auto exchange1 = std::make_shared<OrderBook>("Exchange1", 0.001, 5.0); // Min size = 5.0
+    auto exchange2 = std::make_shared<OrderBook>("Exchange2", 0.0005, 7.0); // Min size = 7.0
+    auto exchange3 = std::make_shared<OrderBook>("Exchange3", 0.0002, 4.0); // Min size = 4.0
+
+    // Setup order books (prices designed to make DP find better combination)
+    // Exchange1: Cheapest but can't fulfill entire order alone
+    exchange1->add_ask(100.0, 5.0);  // 5@100 (effective 100.1)
+    exchange1->add_ask(101.0, 5.0);  // 5@101 (effective 101.101)
+
+    // Exchange2: Medium price but good for combination
+    exchange2->add_ask(100.5, 7.0);  // 7@100.5 (effective 100.55025)
+
+    // Exchange3: Slightly worse price but good for combination
+    exchange3->add_ask(100.8, 4.0);  // 4@100.8 (effective 100.8016)
+    exchange3->add_ask(100.6, 4.0);  // 4@100.6 (effective 100.6012)
+
+    std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books = {
+        {"Exchange1", exchange1},
+        {"Exchange2", exchange2},
+        {"Exchange3", exchange3}
+    };
+
+    SmartOrderRouter router(order_books);
+
+    // Try to buy 8.0 units (can't be fulfilled by single exchange due to min sizes)
+    // Greedy would take 5@100 from Exchange1 and fail to find remaining 3
+    // DP should find combination of 4@100.8 (Exchange3) + 4@100.6 (Exchange3) = 8 total
+    ExecutionPlan execution_plan = router.distribute_order(8.0, true);
+
+    // Verify the execution plan found a solution
+    ASSERT_FALSE(execution_plan.get_plan().empty()) 
+        << "Solution found";
+
+    // Verify we got exactly 8.0 units (100% fulfillment)
+    double total_quantity = 0.0;
+    for (const auto& fill : execution_plan.get_plan()) {
+        total_quantity += fill.second.second;
+    }
+    EXPECT_NEAR(total_quantity, 8.0, 1e-6);
+
+    // Verify we used the optimal combination (should be Exchange3's two 4.0 lots)
+    if (execution_plan.get_plan().size() == 2) {
+        EXPECT_EQ(execution_plan.get_plan()[0].first, "Exchange3");
+        EXPECT_EQ(execution_plan.get_plan()[1].first, "Exchange3");
+        EXPECT_NEAR(execution_plan.get_plan()[0].second.second, 4.0, 1e-6);
+        EXPECT_NEAR(execution_plan.get_plan()[1].second.second, 4.0, 1e-6);
+    }
+
+    // Verify we got a better price than taking 5@100 + nothing
+    double effective_price_with_partial = (5.0 * 100.0 * 1.001) / 5.0; // Would only get 5 units
+    double actual_effective_price = execution_plan.get_average_effective_price();
+    EXPECT_LT(actual_effective_price, effective_price_with_partial)
+        << "DP solution should be better than partial fulfillment";
+
+    // Verify fees calculation
+    double expected_fees = 0.0;
+    for (const auto& fill : execution_plan.get_plan()) {
+        const auto& exchange_name = fill.first;
+        double price = fill.second.first;
+        double quantity = fill.second.second;
+        double fee_rate = order_books.at(exchange_name)->get_taker_fee();
+        expected_fees += quantity * price * fee_rate;
+    }
+    EXPECT_NEAR(execution_plan.get_total_fees(), expected_fees, 1e-6);
+}
