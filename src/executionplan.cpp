@@ -86,7 +86,7 @@ void ExecutionPlan::print() const
         std::cout << "Exchange: " << exchange_name
                   << ", Price: " << std::fixed << std::setprecision(2) << price
                   << ", Quantity: " << std::fixed << std::setprecision(5) << quantity
-                  << ", Fee Amount: " << std::fixed << std::setprecision(2) << price
+                  << ", Fee Amount: " << std::fixed << std::setprecision(2) << fee_amount
                   << ", Effective Price: " << effective_price << std::endl;
     }
 

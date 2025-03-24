@@ -49,10 +49,9 @@ int main()
     auto okx = std::make_shared<OrderBook>("OKX", 0.0002, 0.001);       // 0.02% taker fee, 0.001 min order size
     auto uniswap = std::make_shared<OrderBook>("Uniswap", 0.003, 0.1);  // 0.3% taker fee, 0.1 min order size
 
-    read_csv("../data/binance_order_book.csv", *binance);
-    read_csv("../data/kucoin_order_book.csv", *kucoin);
-    read_csv("../data/okx_order_book.csv", *okx);
-    read_csv("../data/uniswap_order_book.csv", *uniswap);
+    read_csv("../data/snap2/binance_order_book.csv", *binance);
+    read_csv("../data/snap2/kucoin_order_book.csv", *kucoin);
+    read_csv("../data/snap2/okx_order_book.csv", *okx);
 
     // Print order books
     /*binance->print_order_book();
