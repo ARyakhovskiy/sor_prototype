@@ -11,6 +11,11 @@ const std::vector<FillOrder>& ExecutionPlan::get_plan() const
     return m_plan;
 }
 
+void ExecutionPlan::add_fill(const ExchangeName& exchange_name, Price price, Volume quantity)
+{
+    m_plan.emplace_back(exchange_name, std::make_pair(price, quantity));
+}
+
 Price ExecutionPlan::get_total_fees() const 
 {
     double total_fees = 0.0;
