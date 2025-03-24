@@ -1,6 +1,12 @@
 #ifndef SMARTORDERROUTER_H
 #define SMARTORDERROUTER_H
 
+#ifdef DEBUG_MODE
+    #define DEBUG_LOG(x) std::cout << x << std::endl
+#else
+    #define DEBUG_LOG(x)
+#endif
+
 #include "executionplan.h"
 #include "orderbook.h"
 #include <queue>

@@ -3,6 +3,8 @@
 #include "orderbook.h"
 #include "utils.h"
 #include <memory>
+#include <filesystem>
+
 
 class SmartOrderRouterTest : public ::testing::Test {
 protected:
@@ -62,7 +64,7 @@ TEST(SmartOrderRouterTest, SingleExchangeTwoPriceLevels) {
 }
 
 // Test case where optimized solution is better than the greedy solution
-TEST(SmartOrderRouterTest, OptimizationShowcase) {
+TEST(SmartOrderRouterTest, OptimizationShowcase1) {
     // Create order books with large minimum order sizes
     auto exchange1 = std::make_shared<OrderBook>("Exchange1", 0.001, 5.0); // Min size = 5.0
     auto exchange2 = std::make_shared<OrderBook>("Exchange2", 0.0005, 7.0); // Min size = 7.0
@@ -111,8 +113,38 @@ TEST(SmartOrderRouterTest, OptimizationShowcase) {
         EXPECT_NEAR(execution_plan.get_plan()[0].volume, 4.0, 1e-6);
         EXPECT_NEAR(execution_plan.get_plan()[1].volume, 4.0, 1e-6);
     }
+}
 
-    // Verify we got a better earn than taking 5@100 + nothing
-    double effective_price_with_partial = (5.0 * 100.0 * 1.001) / 5.0; // Would only get 5 units
-    double actual_effective_price = execution_plan.get_average_effective_price();
+TEST(SmartOrderRouterTest, OptimizationShowcase2) 
+{
+    auto binance = std::make_shared<OrderBook>("Binance", 0.001, 0.1);  // 0.1% fee, 0.1 min order size
+    auto kucoin = std::make_shared<OrderBook>("KuCoin", 0.0005, 0.15);  // 0.05% fee, 0.15 min order size
+    auto okx = std::make_shared<OrderBook>("OKX", 0.0002, 0.2);         // 0.02% fee, 0.2 min order size
+
+    // Get the current executable's directory
+    std::filesystem::path data_dir = std::filesystem::path(__FILE__).parent_path() / "testdata/force_optimized";
+
+    // Load order books using relative paths
+    read_csv((data_dir / "binance_order_book.csv").string(), *binance);
+    read_csv((data_dir / "kucoin_order_book.csv").string(), *kucoin);
+    read_csv((data_dir / "okx_order_book.csv").string(), *okx);
+    
+    
+    std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books = 
+    {
+        {"Binance", binance},
+        {"KuCoin", kucoin},
+        {"OKX", okx}
+    };
+    
+    SmartOrderRouter router(std::move(order_books));
+
+    ExecutionPlan execution_plan = router.distribute_order(0.45, OrderSide::BUY);
+
+    // Verify 100% fulfillment
+    double total_quantity = 0.0;
+    for (const auto& fill : execution_plan.get_plan()) {
+        total_quantity += fill.volume;
+    }
+    EXPECT_NEAR(total_quantity, 0.45, 1e-6);
 }

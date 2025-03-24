@@ -57,7 +57,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
 
     std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator> best_orders(comparator);
 
-    std::cout << "Initial Order: Size = " << order_size << ", Type = " << ((side == OrderSide::BUY) ? "Buy" : "Sell") << std::endl;
+    DEBUG_LOG("Initial Order: Size = " << order_size << ", Type = " << ((side == OrderSide::BUY) ? "Buy" : "Sell"));
 
     // Initialize priority queue with best orders from each exchange
     for (const auto& [exchange_name, order_book] : *m_order_books) {
@@ -79,41 +79,20 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
                 fee
             });
 
-            std::cout << "\nAdded order to queue: Exchange = " << exchange_name
-                      << ", Effective Price = " << effective_price(price, side, fee)
-                      << ", Volume = " << volume
-                      << ", MinLotSize = " << order_books_ptr->at(exchange_name)->get_min_order_size()
-                      << ", Original Price = " << price
-                      << ", Fee = " << fee << std::endl;
+            DEBUG_LOG("Added order to queue: Exchange = " << exchange_name << ", Effective Price = " << effective_price(price, side, fee) << ", Volume = " << volume
+             << ", MinLotSize = " << order_books_ptr->at(exchange_name)->get_min_order_size() << ", Original Price = " << price << ", Fee = " << fee);
         }
     }
 
     Volume largest_min_lot_size = get_largest_min_lot_size(best_orders);
-    std::cout << " \nlargest_min_lot_size "  << largest_min_lot_size << std::endl;
 
-    while (remaining_size >= absolute_min_lot_size && !best_orders.empty()) {
-        std::cout << "\nCurrent state of best_orders queue:" << std::endl;
-        auto temp_queue = best_orders;
-        while (!temp_queue.empty()) {
-            const auto& order = temp_queue.top();
-            std::cout << "Exchange = " << order.exchange_name
-                      << ", Effective Price = " << order.effective_price
-                      << ", Volume = " << order.volume
-                      << ", MinLotSize = " << m_order_books->at(order.exchange_name)->get_min_order_size()
-                      << ", Original Price = " << order.original_price
-                      << ", Fee = " << order.fee << std::endl;
-            temp_queue.pop();
-        }
+    while (remaining_size >= absolute_min_lot_size && !best_orders.empty()) 
+    {
 
         auto best_order = best_orders.top();
 
-        std::cout << "\nProcessing order: Exchange = " << best_order.exchange_name
-                  << ", Effective Price = " << best_order.effective_price
-                  << ", Volume = " << best_order.volume
-                  << ", MinLotSize = " << m_order_books->at(best_order.exchange_name)->get_min_order_size()
-                  << ", Original Price = " << best_order.original_price
-                  << ", Fee = " << best_order.fee << std::endl;
-
+        DEBUG_LOG("Processing order: Exchange = " << best_order.exchange_name << ", Effective Price = " << best_order.effective_price << ", Volume = " << best_order.volume
+                  << ", MinLotSize = " << m_order_books->at(best_order.exchange_name)->get_min_order_size() << ", Original Price = " << best_order.original_price << ", Fee = " << best_order.fee);
 
         Volume fill_quantity = std::min(best_order.volume, remaining_size);
         Volume min_order_size = m_order_books->at(best_order.exchange_name)->get_min_order_size();
@@ -139,40 +118,35 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
 
             execution_plan.add_fill(FillOrder(best_order.exchange_name, best_order.original_price, fill_quantity));
 
-            std::cout << "Added to execution plan: Exchange = " << best_order.exchange_name
-                      << ", Price = " << best_order.original_price
-                      << ", Quantity = " << fill_quantity << std::endl;
-
-            Price fees = fill_quantity * best_order.original_price * best_order.fee;
-            std::cout << "Fees for this fill: " << fees << std::endl;
+            DEBUG_LOG("Added to execution plan: Exchange = " << best_order.exchange_name << ", Price = " << best_order.original_price << ", Quantity = " << fill_quantity);
             remaining_size -= fill_quantity;
-            std::cout << "Remaining size to fill: " << remaining_size << std::endl;
+            DEBUG_LOG("Remaining size to fill: " << remaining_size);
 
         } 
         else 
         {
-            std::cout << "Skipping order from " << best_order.exchange_name
-                      << " because fill_quantity <= 0." << std::endl;
-            std::cout << "Remaining size to fill: " << remaining_size << std::endl;
+            DEBUG_LOG("Skipping order from " << best_order.exchange_name << " because fill_quantity <= 0." << "\nRemaining size to fill: " << remaining_size);
         }
 
-        // Update order book
+        // Update order book (reduce volume instead of removing)
         auto& order_book = m_order_books->at(best_order.exchange_name);
         if (side == OrderSide::BUY) {
-            order_book->remove_top_ask();
+            order_book->reduce_ask_volume(best_order.original_price, fill_quantity);
         } else {
-            order_book->remove_top_bid();
+            order_book->reduce_bid_volume(best_order.original_price, fill_quantity);
         }
 
         best_orders.pop();
 
         // Add next order from same exchange if available
         const auto& order_side = (side == OrderSide::BUY) ? order_book->get_asks() : order_book->get_bids();
-        if (order_side.empty()) {
+        if (order_side.empty()) 
+        {
             largest_min_lot_size = get_largest_min_lot_size(best_orders);
         }
 
-        if (!order_side.empty() && order_book->get_min_order_size() <= remaining_size) {
+        if (!order_side.empty() && order_book->get_min_order_size() <= remaining_size) 
+        {
             auto next_order = (side == OrderSide::BUY) ? order_side.begin() : --order_side.end();
             Price price = next_order->first;
             Volume volume = next_order->second;
@@ -186,15 +160,10 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
                 fee
             });
 
-            std::cout << "Added next order to queue: Exchange = " << best_order.exchange_name
-                      << ", Effective Price = " << effective_price(price, side, fee)
-                      << ", Volume = " << volume
-                      << ", Original Price = " << price
-                      << ", Fee = " << fee << std::endl;
+            DEBUG_LOG("Added next order to queue: Exchange = " << best_order.exchange_name << ", Effective Price = " << effective_price(price, side, fee) << ", Volume = " << volume
+                      << ", Original Price = " << price  << ", Fee = " << fee);
         }        
     }
-
-    std::cout << "Total Fees Paid: " << std::fixed << std::setprecision(2) << execution_plan.get_total_fees() << std::endl;
 
     return execution_plan;
 }
@@ -288,7 +257,7 @@ std::vector<FillOrder> SmartOrderRouter::distribute_order_optimized(Volume remai
         (side == OrderSide::BUY && total_cost == std::numeric_limits<Price>::max()) ||
         (side == OrderSide::SELL && total_cost == std::numeric_limits<Price>::min())) {
         
-        std::cout << "No exact solution found. Searching for maximum undershoot...\n";
+        DEBUG_LOG("No exact solution found. Searching for maximum undershoot.");
         Volume best_undershoot = 0.0;
         Price best_cost = (side == OrderSide::BUY) 
             ? std::numeric_limits<Price>::max() 
@@ -327,33 +296,34 @@ std::vector<FillOrder> SmartOrderRouter::distribute_order_optimized(Volume remai
         total_cost = best_cost;
     }
 
+    #ifdef DEBUG_MODE
+        // Print results
+        std::cout << "\n=== Optimal Solution ===\n";
+        Volume total_volume = 0.0;
+        Price total_fees = 0.0;
+        for (const auto& fill : solution) {
+            double fee = m_order_books->at(fill.exchange_name)->get_taker_fee();
+            Price eff_price = (side == OrderSide::BUY) ? fill.price * (1 + fee) : fill.price * (1 - fee);
+            Price fill_cost = fill.volume * fill.price;
+            Price fill_fee = fill_cost * fee;
 
-    // Print results
-    std::cout << "\n=== Optimal Solution ===\n";
-    Volume total_volume = 0.0;
-    Price total_fees = 0.0;
-    for (const auto& fill : solution) {
-        double fee = m_order_books->at(fill.exchange_name)->get_taker_fee();
-        Price eff_price = (side == OrderSide::BUY) ? fill.price * (1 + fee) : fill.price * (1 - fee);
-        Price fill_cost = fill.volume * fill.price;
-        Price fill_fee = fill_cost * fee;
+            std::cout << "Exchange: " << std::setw(8) << fill.exchange_name
+                    << " | Price: " << std::setw(10) << fill.price
+                    << " | Volume: " << std::setw(8) << fill.volume
+                    << " | Eff. Price: " << std::setw(12) << eff_price
+                    << " | Fees: " << std::setw(8) << fill_fee << "\n";
 
-        std::cout << "Exchange: " << std::setw(8) << fill.exchange_name
-                  << " | Price: " << std::setw(10) << fill.price
-                  << " | Volume: " << std::setw(8) << fill.volume
-                  << " | Eff. Price: " << std::setw(12) << eff_price
-                  << " | Fees: " << std::setw(8) << fill_fee << "\n";
+            total_volume += fill.volume;
+            total_fees += fill_fee;
+        }
 
-        total_volume += fill.volume;
-        total_fees += fill_fee;
-    }
-
-    std::cout << "\nSummary:\n";
-    std::cout << "Total Volume: " << total_volume << "\n";
-    std::cout << "Total Cost: " << total_cost << "\n";
-    std::cout << "Total Fees: " << total_fees << "\n";
-    std::cout << "Effective Price: " << total_cost / std::max(total_volume, EPSILON) << "\n";
-    std::cout << "====================================\n";
+        std::cout << "\nSummary:\n";
+        std::cout << "Total Volume: " << total_volume << "\n";
+        std::cout << "Total Cost: " << total_cost << "\n";
+        std::cout << "Total Fees: " << total_fees << "\n";
+        std::cout << "Effective Price: " << total_cost / std::max(total_volume, EPSILON) << "\n";
+        std::cout << "====================================\n";
+    #endif
 
     return solution;
 }

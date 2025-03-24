@@ -4,6 +4,8 @@ project(SmartOrderRouting)
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG_MODE")  # Debug symbols, no optimizations
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")       # Aggressive optimizations, no debug
 
 # Include headers
 include_directories(

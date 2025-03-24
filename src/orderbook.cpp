@@ -75,6 +75,44 @@ const ExchangeName OrderBook::get_exchange_name() const
     return m_exchange_name;
 }
 
+void OrderBook::reduce_bid_volume(Price price, Volume reduction) 
+{
+    auto it = m_bids.find(price);
+    if (it != m_bids.end()) 
+    {
+        it->second -= reduction;
+        if (it->second <= 0.0) 
+        {
+            m_bids.erase(it);  // Remove if volume depleted
+        }
+    }
+}
+
+void OrderBook::reduce_ask_volume(Price price, Volume reduction) 
+{
+    auto it = m_asks.find(price);
+    if (it != m_asks.end()) 
+    {
+        it->second -= reduction;
+        if (it->second <= 0.0) 
+        {
+            m_asks.erase(it);  // Remove if volume depleted
+        }
+    }
+}
+
+Volume OrderBook::get_bid_volume(Price price) const 
+{
+    auto it = m_bids.find(price);
+    return (it != m_bids.end()) ? it->second : 0.0;
+}
+
+Volume OrderBook::get_ask_volume(Price price) const 
+{
+    auto it = m_asks.find(price);
+    return (it != m_asks.end()) ? it->second : 0.0;
+}
+
 void OrderBook::print_order_book() const 
 {
     std::cout << "Order Book for " << m_exchange_name << ":" << std::endl;

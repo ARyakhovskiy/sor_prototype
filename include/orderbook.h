@@ -33,6 +33,10 @@ public:
 
     void add_bid(Price price, Volume volume);
     void add_ask(Price price, Volume volume);
+    void reduce_bid_volume(Price price, Volume reduction);
+    void reduce_ask_volume(Price price, Volume reduction);
+    Volume get_bid_volume(Price price) const;
+    Volume get_ask_volume(Price price) const;
     void remove_top_bid();
     void remove_top_ask();
     std::pair<Price, Volume> get_best_bid() const;
