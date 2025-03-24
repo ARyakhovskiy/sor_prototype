@@ -1,3 +1,5 @@
+# Диаграма Классов
+
 ```mermaid
 classDiagram
     direction TB
