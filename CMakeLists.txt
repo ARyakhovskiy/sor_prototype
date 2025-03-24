@@ -19,10 +19,6 @@ add_executable(smart_order_routing
     src/utils.cpp
     )
 
-# Add the tests
 add_subdirectory(tests)
-# Enable testing
 enable_testing()
-
-# Add the test to CTest
 add_test(NAME sor_tests COMMAND sor_tests)

@@ -14,6 +14,12 @@ using Price = double;
 using Volume = double;
 using ExchangeName = std::string;
 
+enum class OrderSide {
+    BUY,
+    SELL
+};
+
+
 class OrderBook {
 private:
     std::map<Price, Volume> m_bids; // Key: Price, Value: Total volume at that price

@@ -17,7 +17,7 @@ int main()
     auto uniswap = std::make_shared<OrderBook>("Uniswap", 0.003, 0.1);  // 0.3% taker fee, 0.1 min order size
 
     // Get the current executable's directory
-    fs::path data_dir = fs::path(__FILE__).parent_path().parent_path() / "data";
+    fs::path data_dir = fs::path(__FILE__).parent_path().parent_path() / "data/snap2";
     
     // Load order books using relative paths
     read_csv((data_dir / "binance_order_book.csv").string(), *binance);
@@ -60,9 +60,9 @@ int main()
             break;
         }
 
-        bool is_buy = (order_size > 0);
+        OrderSide side = (order_size > 0) ? OrderSide::BUY : OrderSide::SELL;
 
-        ExecutionPlan execution_plan = router.distribute_order(std::abs(order_size), is_buy);
+        ExecutionPlan execution_plan = router.distribute_order(std::abs(order_size), side);
 
         execution_plan.print();
 

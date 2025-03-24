@@ -6,9 +6,9 @@ constexpr double EPSILON = 1e-12;
 SmartOrderRouter::SmartOrderRouter(std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>> order_books)
     : m_order_books(std::make_unique<std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>>(std::move(order_books))) {}
 
-Price effective_price(Price original_price, bool is_buy, double fee)
+Price effective_price(Price original_price, OrderSide side, double fee)
 {
-    return is_buy ? original_price * (1 + fee) : original_price * (1 - fee);
+    return (side == OrderSide::BUY) ? original_price * (1 + fee) : original_price * (1 - fee);
 }
 
 double SmartOrderRouter::get_largest_min_lot_size(
@@ -29,7 +29,7 @@ double SmartOrderRouter::get_largest_min_lot_size(
     return largest_min;
 }
 
-ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy) const
+ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide side) const
 {
     // Create aliasing shared_ptr for order books
     auto order_books_ptr = std::shared_ptr<const std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>>(
@@ -38,7 +38,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
     );
     
     // Create empty execution plan at start
-    ExecutionPlan execution_plan({}, order_books_ptr, is_buy, order_size);
+    ExecutionPlan execution_plan({}, order_books_ptr, side, order_size);
 
     Volume remaining_size = order_size;
     Volume absoluteMinLotSize = order_size;
@@ -46,7 +46,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
     // Initialize priority queue with original comparator logic
     using Comparator = std::function<bool(const BestOrder&, const BestOrder&)>;
     Comparator comparator;
-    if (is_buy) 
+    if (side == OrderSide::BUY) 
     {
         comparator = BestOrder::BuyComparator();
     } 
@@ -56,16 +56,16 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
     }
     std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator> best_orders(comparator);
 
-    std::cout << "Initial Order: Size = " << order_size << ", Type = " << (is_buy ? "Buy" : "Sell") << std::endl;
+    std::cout << "Initial Order: Size = " << order_size << ", Type = " << ((side == OrderSide::BUY) ? "Buy" : "Sell") << std::endl;
 
     // Initialize priority queue with best orders from each exchange
     for (const auto& [exchange_name, order_book] : *m_order_books) 
     {
-        const auto& order_side = is_buy ? order_book->get_asks() : order_book->get_bids();
+        const auto& order_side = (side == OrderSide::BUY) ? order_book->get_asks() : order_book->get_bids();
 
         if (!order_side.empty()) 
         {
-            auto best_order = is_buy ? order_side.begin() : --order_side.end();
+            auto best_order = (side == OrderSide::BUY) ? order_side.begin() : --order_side.end();
             Price price = best_order->first;
             Volume volume = best_order->second;
             double fee = order_book->get_taker_fee();
@@ -74,14 +74,14 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
 
             best_orders.push({
                 exchange_name,
-                effective_price(price, is_buy, fee),
+                effective_price(price, side, fee),
                 volume,
                 price,
                 fee
             });
 
             std::cout << "Added order to queue: Exchange = " << exchange_name
-                      << ", Effective Price = " << effective_price(price, is_buy, fee)
+                      << ", Effective Price = " << effective_price(price, side, fee)
                       << ", Volume = " << volume
                       << ", Original Price = " << price
                       << ", Fee = " << fee << std::endl;
@@ -138,31 +138,34 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
 
         // Update order book
         auto& order_book = m_order_books->at(best_order.exchange_name);
-        if (is_buy) {
+        if (side == OrderSide::BUY) 
+        {
             order_book->remove_top_ask();
-        } else {
+        } 
+        else 
+        {
             order_book->remove_top_bid();
         }
 
         // Add next order from same exchange if available
-        const auto& order_side = is_buy ? order_book->get_asks() : order_book->get_bids();
+        const auto& order_side = (side == OrderSide::BUY) ? order_book->get_asks() : order_book->get_bids();
         if (!order_side.empty() && order_book->get_min_order_size() <= remaining_size) 
         {
-            auto next_order = is_buy ? order_side.begin() : --order_side.end();
+            auto next_order = (side == OrderSide::BUY) ? order_side.begin() : --order_side.end();
             Price price = next_order->first;
             Volume volume = next_order->second;
             double fee = order_book->get_taker_fee();
 
             best_orders.push({
                 best_order.exchange_name,
-                effective_price(price, is_buy, fee),
+                effective_price(price, side, fee),
                 volume,
                 price,
                 fee
             });
 
             std::cout << "Added next order to queue: Exchange = " << best_order.exchange_name
-                      << ", Effective Price = " << effective_price(price, is_buy, fee)
+                      << ", Effective Price = " << effective_price(price, side, fee)
                       << ", Volume = " << volume
                       << ", Original Price = " << price
                       << ", Fee = " << fee << std::endl;

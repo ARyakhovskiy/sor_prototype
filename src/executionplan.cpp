@@ -2,9 +2,9 @@
 
 ExecutionPlan::ExecutionPlan(const std::vector<FillOrder>& plan,
                             std::shared_ptr<const std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>> order_books,
-                            bool is_buy,
+                            OrderSide side,
                             Volume original_order_size
-) : m_plan(plan), m_order_books(std::move(order_books)), m_is_buy(is_buy), m_original_order_size(original_order_size) {}
+) : m_plan(plan), m_order_books(std::move(order_books)), m_side(side), m_original_order_size(original_order_size) {}
 
 const std::vector<FillOrder>& ExecutionPlan::get_plan() const 
 {
@@ -40,7 +40,7 @@ Price ExecutionPlan::get_total() const
         Price price = record.second.first;
         Volume quantity = record.second.second;
         double fee = m_order_books->at(exchange_name)->get_taker_fee();
-        Price effective_price = m_is_buy ? price * (1 + fee) : price * (1 - fee);
+        Price effective_price = (m_side == OrderSide::BUY) ? price * (1 + fee) : price * (1 - fee);
         total += quantity * effective_price;
     }
     return total;
@@ -87,7 +87,7 @@ void ExecutionPlan::print() const
         Volume quantity = record.second.second;
         double fee_rate = m_order_books->at(exchange_name)->get_taker_fee();
         Price fee_amount = quantity * price * fee_rate; // Actual fee amount
-        Price effective_price = m_is_buy ? price * (1 + fee_rate) : price * (1 - fee_rate);
+        Price effective_price = (m_side == OrderSide::BUY) ? price * (1 + fee_rate) : price * (1 - fee_rate);
 
         std::cout << "Exchange: " << exchange_name
                   << ", Price: " << std::fixed << std::setprecision(2) << price
@@ -98,7 +98,7 @@ void ExecutionPlan::print() const
 
     std::cout << "\nMetrics:" << std::endl;
     std::cout << "Total Fees: " << get_total_fees() << std::endl;
-    if (m_is_buy) 
+    if (m_side == OrderSide::BUY) 
     {
         std::cout << "Total Cost (including fees): " << get_total() << std::endl;
     } 

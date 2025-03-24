@@ -45,7 +45,7 @@ TEST(SmartOrderRouterTest, SingleExchangeTwoPriceLevels) {
     SmartOrderRouter router(order_books);
 
     // Distribute the order
-    ExecutionPlan execution_plan = router.distribute_order(12.0, true); // Buy 12 units
+    ExecutionPlan execution_plan = router.distribute_order(12.0, OrderSide::BUY); // Buy 12 units
 
     // Verify the execution plan
     ASSERT_EQ(execution_plan.get_plan().size(), 2);
@@ -91,7 +91,7 @@ TEST(SmartOrderRouterTest, DynamicProgrammingPhaseDominates) {
     // Try to buy 8.0 units (can't be fulfilled by single exchange due to min sizes)
     // Greedy would take 5@100 from Exchange1 and fail to find remaining 3
     // DP should find combination of 4@100.8 (Exchange3) + 4@100.6 (Exchange3) = 8 total
-    ExecutionPlan execution_plan = router.distribute_order(8.0, true);
+    ExecutionPlan execution_plan = router.distribute_order(8.0, OrderSide::BUY);
 
     // Verify the execution plan found a solution
     ASSERT_FALSE(execution_plan.get_plan().empty()) 

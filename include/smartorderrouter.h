@@ -43,7 +43,7 @@ public:
     SmartOrderRouter(const SmartOrderRouter&) = delete;
     SmartOrderRouter& operator=(const SmartOrderRouter&) = delete;
     
-    ExecutionPlan distribute_order(Volume order_size, bool is_buy) const;
+    ExecutionPlan distribute_order(Volume order_size, OrderSide m_side) const;
 
     void print_remaining_liquidity() const;
 };

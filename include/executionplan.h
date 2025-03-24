@@ -17,15 +17,15 @@ class ExecutionPlan
 private:
     std::vector<FillOrder> m_plan;
     std::shared_ptr<const std::unordered_map<ExchangeName, std::shared_ptr<class OrderBook>>> m_order_books;
-    bool m_is_buy;
+    OrderSide m_side;
     Volume m_original_order_size;
 
 public:
     // Constructor
     ExecutionPlan(const std::vector<FillOrder>& plan,
                 std::shared_ptr<const std::unordered_map<ExchangeName, std::shared_ptr<class OrderBook>>> order_books,
-                bool is_buy,
-                double original_order_size);
+                OrderSide side,
+                Volume original_order_size);
 
     void add_fill(const ExchangeName& exchange_name, Price price, Volume quantity);
 
