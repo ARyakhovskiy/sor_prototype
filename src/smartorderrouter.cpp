@@ -123,16 +123,14 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
 
         if (fill_quantity > 0) 
         {
-            // Check if we should switch to DP approach
+            // Check if we should switch to optimized approach (if we're close to min_order_sizes)
             if (algorithm == RoutingAlgorithm::HYBRID && 
                 remaining_size - fill_quantity > EPSILON &&
                 remaining_size - fill_quantity < largest_min_lot_size) 
-            {
-                std::cout << "\nSwitching to dynamic programming approach for remaining " 
-                          << remaining_size << " units\n";
-                
-                auto dp_fills = distribute_order_optimized(remaining_size, side, best_orders);
-                for (const auto& fill : dp_fills) {
+            {               
+                std::vector<FillOrder> optimized_fills = distribute_order_optimized(remaining_size, side, best_orders);
+                for (const FillOrder& fill : optimized_fills) 
+                {
                     execution_plan.add_fill(fill);
                     remaining_size -= fill.volume;
                 }
@@ -150,7 +148,9 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
             remaining_size -= fill_quantity;
             std::cout << "Remaining size to fill: " << remaining_size << std::endl;
 
-        } else {
+        } 
+        else 
+        {
             std::cout << "Skipping order from " << best_order.exchange_name
                       << " because fill_quantity <= 0." << std::endl;
             std::cout << "Remaining size to fill: " << remaining_size << std::endl;
@@ -199,30 +199,33 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
     return execution_plan;
 }
 
-std::vector<FillOrder> SmartOrderRouter::distribute_order_optimized(
-    Volume remaining_size,
-    OrderSide side,
-    const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders
-) const {
-    std::cout << "Remaining size to fill: " << remaining_size << std::endl;
-
-    // Generate all possible lots (respecting min order sizes)
+std::vector<FillOrder> SmartOrderRouter::distribute_order_optimized(Volume remaining_size,
+                                                                    OrderSide side,
+                                                                    const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders
+                                                                ) const 
+{
+    // Generate candidate lots (stop adding from an exchange if cumulative volume >= remaining_size)
     std::vector<FillOrder> available_lots;
     for (const auto& [exchange_name, order_book] : *m_order_books) {
         const auto& order_side = (side == OrderSide::BUY) ? order_book->get_asks() : order_book->get_bids();
         Volume min_size = order_book->get_min_order_size();
+        Volume cumulative_volume = 0.0;
 
         for (const auto& [price, volume] : order_side) {
-            int max_lots = static_cast<int>(volume / min_size);
-            for (int i = 0; i < max_lots; i++) {
+            Volume remaining_volume_at_level = volume;
+            while (remaining_volume_at_level >= min_size && cumulative_volume < remaining_size + EPSILON) {
                 available_lots.emplace_back(exchange_name, price, min_size);
+                cumulative_volume += min_size;
+                remaining_volume_at_level -= min_size;
             }
+            if (cumulative_volume >= remaining_size) break; // Stop if exchange has enough volume
         }
     }
 
     // Sort by effective price (best first)
     std::sort(available_lots.begin(), available_lots.end(),
-        [this, side](const FillOrder& a, const FillOrder& b) {
+        [this, side](const FillOrder& a, const FillOrder& b) 
+        {
             double fee_a = m_order_books->at(a.exchange_name)->get_taker_fee();
             double fee_b = m_order_books->at(b.exchange_name)->get_taker_fee();
             Price eff_a = (side == OrderSide::BUY) ? a.price * (1 + fee_a) : a.price * (1 - fee_a);
@@ -230,33 +233,23 @@ std::vector<FillOrder> SmartOrderRouter::distribute_order_optimized(
             return (side == OrderSide::BUY) ? (eff_a < eff_b) : (eff_a > eff_b);
         });
 
-    // Memoization table: stores best solution for (remaining_volume, current_index)
-    using MemoKey = std::pair<Volume, size_t>;
-    struct MemoValue {
-        Price cost;
-        std::vector<FillOrder> solution;
-    };
-    std::map<MemoKey, MemoValue> memo;
 
-    // Recursive helper with memoization
-    std::function<MemoValue(Volume, size_t)> solve = [&](Volume remaining, size_t index) -> MemoValue {
+    using MemoKey = std::pair<Volume, size_t>; // (remaining_volume, current_index)
+    std::map<MemoKey, std::pair<Price, std::vector<FillOrder>>> memo;
+
+    std::function<std::pair<Price, std::vector<FillOrder>>(Volume, size_t)> solve = [&](Volume remaining, size_t index) -> std::pair<Price, std::vector<FillOrder>> 
+    {
         MemoKey key = {remaining, index};
         
-        // Check memo table
-        if (memo.count(key)) {
-            return memo[key];
-        }
+        if (memo.count(key)) return memo[key];
 
-        // Base case: order filled
-        if (remaining <= EPSILON) {
-            return {0.0, {}};
-        }
+        if (remaining <= EPSILON) return {0.0, {}};
 
-        // Base case: no more lots to consider
-        if (index >= available_lots.size()) {
-            return {
-                (side == OrderSide::BUY) ? std::numeric_limits<Price>::max() 
-                                         : std::numeric_limits<Price>::min(),
+        if (index >= available_lots.size()) 
+        {
+            return 
+            {
+                (side == OrderSide::BUY) ? std::numeric_limits<Price>::max() : std::numeric_limits<Price>::min(),
                 {}
             };
         }
@@ -266,102 +259,103 @@ std::vector<FillOrder> SmartOrderRouter::distribute_order_optimized(
         Price lot_cost = lot.volume * lot.price * (1 + ((side == OrderSide::BUY) ? fee : -fee));
 
         // Option 1: Take this lot (if possible)
-        MemoValue take_result;
-        if (lot.volume <= remaining + EPSILON) {
-            take_result = solve(remaining - lot.volume, index + 1);
-            take_result.cost += lot_cost;
-            take_result.solution.push_back(lot);
-        } else {
-            take_result = {
+        auto take_solution = (lot.volume <= remaining + EPSILON)
+            ? solve(remaining - lot.volume, index + 1)
+            : std::make_pair(
                 (side == OrderSide::BUY) ? std::numeric_limits<Price>::max() 
-                                             : std::numeric_limits<Price>::min(),
-                {}
-            };
-        }
+                                        : std::numeric_limits<Price>::min(),
+                std::vector<FillOrder>{}
+                );
+        take_solution.first += lot_cost;
+        take_solution.second.push_back(lot);
 
         // Option 2: Skip this lot
-        MemoValue skip_result = solve(remaining, index + 1);
+        auto skip_solution = solve(remaining, index + 1);
 
-        // Determine which option is better
-        bool take_is_better;
-        if (side == OrderSide::BUY) {
-            take_is_better = take_result.cost < skip_result.cost;
-        } else {
-            take_is_better = take_result.cost > skip_result.cost;
-        }
+        bool take_is_better = (side == OrderSide::BUY) 
+            ? (take_solution.first < skip_solution.first)
+            : (take_solution.first > skip_solution.first);
 
-        // Store result in memo table
-        memo[key] = take_is_better ? take_result : skip_result;
+        memo[key] = take_is_better ? take_solution : skip_solution;
         return memo[key];
     };
 
-    // Find the best solution
-    MemoValue result = solve(remaining_size, 0);
+    // Solve for exact fill
+    auto [total_cost, solution] = solve(remaining_size, 0);
 
-    // If no exact solution, find minimal overshoot
-    if (result.solution.empty() || 
-        (side == OrderSide::BUY && result.cost == std::numeric_limits<Price>::max()) ||
-        (side == OrderSide::SELL && result.cost == std::numeric_limits<Price>::min())) {
+    // If no exact solution, find the maximum undershoot
+    if (solution.empty() || 
+        (side == OrderSide::BUY && total_cost == std::numeric_limits<Price>::max()) ||
+        (side == OrderSide::SELL && total_cost == std::numeric_limits<Price>::min())) {
         
-        std::cout << "No exact solution found, looking for minimal overshoot...\n";
-        Volume best_overshoot = std::numeric_limits<Volume>::max();
-        Price best_cost = (side == OrderSide::BUY) ? std::numeric_limits<Price>::max() 
-                                                  : std::numeric_limits<Price>::min();
-        std::vector<FillOrder> best_overshoot_solution;
+        std::cout << "No exact solution found. Searching for maximum undershoot...\n";
+        Volume best_undershoot = 0.0;
+        Price best_cost = (side == OrderSide::BUY) 
+            ? std::numeric_limits<Price>::max() 
+            : std::numeric_limits<Price>::min();
+        solution.clear();
 
-        for (const auto& lot : available_lots) {
-            if (lot.volume >= remaining_size) {
-                double fee = m_order_books->at(lot.exchange_name)->get_taker_fee();
-                Price cost = lot.volume * lot.price * (1 + ((side == OrderSide::BUY) ? fee : -fee));
-                Volume overshoot = lot.volume - remaining_size;
+        std::function<void(size_t, Volume, Price, std::vector<FillOrder>&)> backtrack =
+            [&](size_t start_idx, Volume current_volume, Price current_cost, std::vector<FillOrder>& current) {
+                if (current_volume > remaining_size + EPSILON) return;
 
-                if (overshoot < best_overshoot || 
-                    (overshoot == best_overshoot && 
-                     ((side == OrderSide::BUY && cost < best_cost) ||
-                      (side == OrderSide::SELL && cost > best_cost)))) {
-                    best_overshoot = overshoot;
-                    best_cost = cost;
-                    best_overshoot_solution = {lot};
+                // Update best solution if current undershoot is better
+                if (current_volume > best_undershoot + EPSILON ||
+                    (std::abs(current_volume - best_undershoot) <= EPSILON &&
+                     ((side == OrderSide::BUY && current_cost < best_cost) ||
+                      (side == OrderSide::SELL && current_cost > best_cost)))) {
+                    best_undershoot = current_volume;
+                    best_cost = current_cost;
+                    solution = current;
                 }
-            }
-        }
-        result.solution = best_overshoot_solution;
-        result.cost = best_cost;
+
+                for (size_t i = start_idx; i < available_lots.size(); ++i) {
+                    const FillOrder& lot = available_lots[i];
+                    double fee = m_order_books->at(lot.exchange_name)->get_taker_fee();
+                    Price cost = lot.volume * lot.price * (1 + ((side == OrderSide::BUY) ? fee : -fee));
+
+                    if (current_volume + lot.volume <= remaining_size + EPSILON) {
+                        current.push_back(lot);
+                        backtrack(i + 1, current_volume + lot.volume, current_cost + cost, current);
+                        current.pop_back();
+                    }
+                }
+            };
+
+        std::vector<FillOrder> current;
+        backtrack(0, 0.0, 0.0, current);
+        total_cost = best_cost;
     }
 
-    // Print results
-    std::cout << "\n=== Optimal Solution Found ===\n";
-    Volume total_volume = 0.0;
-    Price total_cost = 0.0;
-    Price total_fees = 0.0;
 
-    for (const auto& fill : result.solution) {
+    // Print results
+    std::cout << "\n=== Optimal Solution ===\n";
+    Volume total_volume = 0.0;
+    Price total_fees = 0.0;
+    for (const auto& fill : solution) {
         double fee = m_order_books->at(fill.exchange_name)->get_taker_fee();
         Price eff_price = (side == OrderSide::BUY) ? fill.price * (1 + fee) : fill.price * (1 - fee);
         Price fill_cost = fill.volume * fill.price;
         Price fill_fee = fill_cost * fee;
 
-        std::cout << "Exchange: " << std::setw(10) << fill.exchange_name 
+        std::cout << "Exchange: " << std::setw(8) << fill.exchange_name
                   << " | Price: " << std::setw(10) << fill.price
-                  << " | Eff Price: " << std::setw(12) << eff_price
-                  << " | Volume: " << std::setw(10) << fill.volume
-                  << " | Cost: " << std::setw(12) << fill_cost
-                  << " | Fees: " << std::setw(10) << fill_fee << std::endl;
+                  << " | Volume: " << std::setw(8) << fill.volume
+                  << " | Eff. Price: " << std::setw(12) << eff_price
+                  << " | Fees: " << std::setw(8) << fill_fee << "\n";
 
         total_volume += fill.volume;
-        total_cost += fill_cost;
         total_fees += fill_fee;
     }
 
-    Price total_effective_cost = (side == OrderSide::BUY) ? (total_cost + total_fees) : (total_cost - total_fees);
     std::cout << "\nSummary:\n";
     std::cout << "Total Volume: " << total_volume << "\n";
     std::cout << "Total Cost: " << total_cost << "\n";
     std::cout << "Total Fees: " << total_fees << "\n";
-    std::cout << "Total Effective Cost: " << total_effective_cost << "\n";
+    std::cout << "Effective Price: " << total_cost / std::max(total_volume, EPSILON) << "\n";
     std::cout << "====================================\n";
 
-    return result.solution;
+    return solution;
 }
 
 void SmartOrderRouter::print_remaining_liquidity() const
