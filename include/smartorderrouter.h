@@ -14,6 +14,7 @@
 #include <iomanip>
 
 
+
 struct BestOrder {
     ExchangeName exchange_name;
     Price effective_price;

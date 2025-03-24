@@ -1,13 +1,12 @@
 #include "../include/executionplan.h"
 
-ExecutionPlan::ExecutionPlan(
-    const std::vector<std::pair<std::string, std::pair<Price, Volume>>>& plan,
-    const std::unordered_map<std::string, std::shared_ptr<OrderBook>>& order_books,
-    bool is_buy,
-    Volume original_order_size
+ExecutionPlan::ExecutionPlan(const std::vector<FillOrder>& plan,
+                            const std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>& order_books,
+                            bool is_buy,
+                            Volume original_order_size
 ) : plan(plan), order_books(order_books), is_buy(is_buy), original_order_size(original_order_size) {}
 
-const std::vector<std::pair<std::string, std::pair<Price, Volume>>>& ExecutionPlan::get_plan() const 
+const std::vector<FillOrder>& ExecutionPlan::get_plan() const 
 {
     return plan;
 }
@@ -77,7 +76,7 @@ void ExecutionPlan::print() const
     std::cout << "Execution Plan:" << std::endl;
     for (const auto& record : plan) 
     {
-        const std::string& exchange_name = record.first;
+        const ExchangeName& exchange_name = record.first;
         Price price = record.second.first;
         Volume quantity = record.second.second;
         double fee_rate = order_books.at(exchange_name)->get_taker_fee();

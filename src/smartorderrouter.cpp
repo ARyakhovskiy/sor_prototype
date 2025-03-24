@@ -17,7 +17,7 @@ Price effective_price(Price original_price, bool is_buy, double fee)
 
 ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy) const
 {
-    std::vector<std::pair<std::string, std::pair<Price, Volume>>> execution_plan;
+    std::vector<FillOrder> execution_plan;
     Volume remaining_size = order_size;
     double total_fees = 0.0;
 
@@ -95,10 +95,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
         // Ensure the fill quantity is a multiple of the minimum order size
         double min_order_size = order_books.at(best_order.exchange_name)->get_min_order_size();
 
-        fill_quantity = std::floor((fill_quantity / min_order_size) +EPSILON) * min_order_size; // necessary to avoid truncation error 
-
-        //fill_quantity = std::min(fill_quantity, remaining_size);
-
+        fill_quantity = std::floor((fill_quantity / min_order_size) + EPSILON) * min_order_size; // EPS is necessary to avoid truncation error 
 
         if (fill_quantity > 0) 
         {
@@ -157,53 +154,4 @@ ExecutionPlan SmartOrderRouter::distribute_order(double order_size, bool is_buy)
     std::cout << "Total Fees Paid: " << std::fixed << std::setprecision(2) << total_fees << std::endl;
 
     return ExecutionPlan(execution_plan, order_books, is_buy, order_size);
-}
-
-ExecutionPlan SmartOrderRouter::distribute_order_dp(double order_size, bool is_buy) const {
-    std::vector<std::pair<std::string, std::pair<double, double>>> fills; // Vector of fill orders
-    double remaining_size = order_size;
-    double total_fees = 0.0;
-
-    // Get all exchanges and their top order prices
-    std::vector<std::pair<std::string, double>> exchanges;
-    for (const auto& [exchange_name, order_book] : order_books) 
-    {
-        auto best_order = is_buy ? order_book->get_best_ask() : order_book->get_best_bid();
-        double price = best_order.first;
-        double fee = order_book->get_taker_fee();
-        exchanges.push_back({exchange_name, effective_price(price, fee, is_buy)});
-    }
-
-    // Sort exchanges by effective price (best to worst for buy, worst to best for sell)
-    auto comparator = [is_buy](const std::pair<std::string, double>& a, const std::pair<std::string, double>& b) 
-    {
-        return is_buy ? (a.second < b.second) : (a.second > b.second);
-    };
-    
-    std::sort(exchanges.begin(), exchanges.end(), comparator);
-
-    // Assign volume to exchanges in order of best price
-    for (const auto& [exchange_name, effective_price] : exchanges) {
-        auto order_book = order_books.at(exchange_name);
-        double min_order_size = order_book->get_min_order_size();
-        double available_volume = is_buy ? order_book->get_best_ask().second : order_book->get_best_bid().second;
-
-        // Calculate the maximum quantity we can take from this exchange
-        double max_quantity = std::min(available_volume, remaining_size);
-        int num_lots = static_cast<int>(std::round(max_quantity / min_order_size));
-
-        // Distribute as much as possible to this exchange
-        if (num_lots > 0) {
-            double quantity = num_lots * min_order_size;
-            fills.push_back({exchange_name, {order_book->get_best_ask().first, quantity}});
-            remaining_size -= quantity;
-            total_fees += quantity * order_book->get_best_ask().first * order_book->get_taker_fee();
-        }
-
-        // Stop if the order is fully filled
-        if (remaining_size <= 0) break;
-    }
-
-    return ExecutionPlan(fills, order_books, is_buy, order_size);
-
 }

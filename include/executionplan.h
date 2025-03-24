@@ -10,16 +10,19 @@
 #include <iostream>
 #include "orderbook.h"
 
+
+using FillOrder = std::pair<ExchangeName, std::pair<Price, Volume>>;
+
 class ExecutionPlan {
 private:
-    std::vector<std::pair<std::string, std::pair<Price, Volume>>> plan;
+    std::vector<FillOrder> plan;
     std::unordered_map<std::string, std::shared_ptr<class OrderBook>> order_books;
     bool is_buy;
     Volume original_order_size;
 
 public:
     // Constructor
-    ExecutionPlan(const std::vector<std::pair<std::string, std::pair<Price, Volume>>>& plan,
+    ExecutionPlan(const std::vector<FillOrder>& plan,
                 const std::unordered_map<std::string, std::shared_ptr<class OrderBook>>& order_books,
                 bool is_buy,
                 double original_order_size);
@@ -27,7 +30,7 @@ public:
     // Add a fill to the execution plan
     void add_fill(const std::string& exchange_name, double price, double quantity);
 
-    const std::vector<std::pair<std::string, std::pair<Price, Volume>>>& get_plan() const;
+    const std::vector<FillOrder>& get_plan() const;
     Price get_total_fees() const;
 
     // Compute and get total cost (for buy orders) or total profit (for sell orders)
