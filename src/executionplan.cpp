@@ -11,9 +11,9 @@ const std::vector<FillOrder>& ExecutionPlan::get_plan() const
     return m_plan;
 }
 
-void ExecutionPlan::add_fill(const ExchangeName& exchange_name, Price price, Volume quantity)
+void ExecutionPlan::add_fill(FillOrder fill)
 {
-    m_plan.emplace_back(exchange_name, std::make_pair(price, quantity));
+    m_plan.emplace_back(fill);
 }
 
 Price ExecutionPlan::get_total_fees() const 
@@ -21,9 +21,9 @@ Price ExecutionPlan::get_total_fees() const
     double total_fees = 0.0;
     for (const auto& record : m_plan) 
     {
-        const ExchangeName& exchange_name = record.first;
-        Price price = record.second.first;
-        Volume quantity = record.second.second;
+        const ExchangeName& exchange_name = record.exchange_name;
+        Price price = record.price;
+        Volume quantity = record.volume;
         double fee = m_order_books->at(exchange_name)->get_taker_fee();
         total_fees += quantity * price * fee;
     }
@@ -36,9 +36,9 @@ Price ExecutionPlan::get_total() const
     Price total = 0.0;
     for (const FillOrder& record : m_plan) 
     {
-        const ExchangeName& exchange_name = record.first;
-        Price price = record.second.first;
-        Volume quantity = record.second.second;
+        const ExchangeName& exchange_name = record.exchange_name;
+        Price price = record.price;
+        Volume quantity = record.volume;
         double fee = m_order_books->at(exchange_name)->get_taker_fee();
         Price effective_price = (m_side == OrderSide::BUY) ? price * (1 + fee) : price * (1 - fee);
         total += quantity * effective_price;
@@ -51,7 +51,7 @@ Price ExecutionPlan::get_average_effective_price() const
     Volume total_quantity = 0.0;
     for (const FillOrder& record : m_plan) 
     {
-        total_quantity += record.second.second;
+        total_quantity += record.volume;
     }
     if (total_quantity == 0.0) 
     {
@@ -71,7 +71,7 @@ double ExecutionPlan::get_fulfillment_percentage() const
         Volume total_quantity = 0.0;
         for (const auto& record : m_plan) 
         {
-            total_quantity += record.second.second;
+            total_quantity += record.volume;
         }
         return (total_quantity / m_original_order_size) * 100.0;
     }
@@ -82,9 +82,9 @@ void ExecutionPlan::print() const
     std::cout << "Execution Plan:" << std::endl;
     for (const auto& record : m_plan) 
     {
-        const ExchangeName& exchange_name = record.first;
-        Price price = record.second.first;
-        Volume quantity = record.second.second;
+        const ExchangeName& exchange_name = record.exchange_name;
+        Price price = record.price;
+        Volume quantity = record.volume;
         double fee_rate = m_order_books->at(exchange_name)->get_taker_fee();
         Price fee_amount = quantity * price * fee_rate; // Actual fee amount
         Price effective_price = (m_side == OrderSide::BUY) ? price * (1 + fee_rate) : price * (1 - fee_rate);

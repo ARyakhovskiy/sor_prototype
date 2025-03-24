@@ -49,12 +49,12 @@ TEST(SmartOrderRouterTest, SingleExchangeTwoPriceLevels) {
 
     // Verify the execution plan
     ASSERT_EQ(execution_plan.get_plan().size(), 2);
-    EXPECT_EQ(execution_plan.get_plan()[0].first, "Exchange1");
-    EXPECT_EQ(execution_plan.get_plan()[0].second.first, 100.0); // Price
-    EXPECT_EQ(execution_plan.get_plan()[0].second.second, 10.0); // Quantity
-    EXPECT_EQ(execution_plan.get_plan()[1].first, "Exchange1");
-    EXPECT_EQ(execution_plan.get_plan()[1].second.first, 101.0); // Price
-    EXPECT_EQ(execution_plan.get_plan()[1].second.second, 2.0);  // Quantity
+    EXPECT_EQ(execution_plan.get_plan()[0].exchange_name, "Exchange1");
+    EXPECT_EQ(execution_plan.get_plan()[0].price, 100.0); // Price
+    EXPECT_EQ(execution_plan.get_plan()[0].volume, 10.0); // Quantity
+    EXPECT_EQ(execution_plan.get_plan()[1].exchange_name, "Exchange1");
+    EXPECT_EQ(execution_plan.get_plan()[1].price, 101.0); // Price
+    EXPECT_EQ(execution_plan.get_plan()[1].volume, 2.0);  // Quantity
 
     // Verify total fees
     double expected_fees = (10.0 * 100.0 * 0.001) + (2.0 * 101.0 * 0.001); // Fees for both fills
@@ -100,16 +100,16 @@ TEST(SmartOrderRouterTest, DynamicProgrammingPhaseDominates) {
     // Verify we got exactly 8.0 units (100% fulfillment)
     double total_quantity = 0.0;
     for (const auto& fill : execution_plan.get_plan()) {
-        total_quantity += fill.second.second;
+        total_quantity += fill.volume;
     }
     EXPECT_NEAR(total_quantity, 8.0, 1e-6);
 
     // Verify we used the optimal combination (should be Exchange3's two 4.0 lots)
     if (execution_plan.get_plan().size() == 2) {
-        EXPECT_EQ(execution_plan.get_plan()[0].first, "Exchange3");
-        EXPECT_EQ(execution_plan.get_plan()[1].first, "Exchange3");
-        EXPECT_NEAR(execution_plan.get_plan()[0].second.second, 4.0, 1e-6);
-        EXPECT_NEAR(execution_plan.get_plan()[1].second.second, 4.0, 1e-6);
+        EXPECT_EQ(execution_plan.get_plan()[0].exchange_name, "Exchange3");
+        EXPECT_EQ(execution_plan.get_plan()[1].exchange_name, "Exchange3");
+        EXPECT_NEAR(execution_plan.get_plan()[0].volume, 4.0, 1e-6);
+        EXPECT_NEAR(execution_plan.get_plan()[1].volume, 4.0, 1e-6);
     }
 
     // Verify we got a better price than taking 5@100 + nothing
@@ -121,9 +121,9 @@ TEST(SmartOrderRouterTest, DynamicProgrammingPhaseDominates) {
     // Verify fees calculation
     double expected_fees = 0.0;
     for (const auto& fill : execution_plan.get_plan()) {
-        const auto& exchange_name = fill.first;
-        double price = fill.second.first;
-        double quantity = fill.second.second;
+        const auto& exchange_name = fill.exchange_name;
+        double price = fill.price;
+        double quantity = fill.volume;
         double fee_rate = order_books.at(exchange_name)->get_taker_fee();
         expected_fees += quantity * price * fee_rate;
     }

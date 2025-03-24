@@ -10,7 +10,18 @@
 #include <iostream>
 #include "orderbook.h"
 
-using FillOrder = std::pair<ExchangeName, std::pair<Price, Volume>>;
+struct FillOrder
+{
+    ExchangeName exchange_name;
+    Price price;
+    Volume volume;
+
+    // Default constructor
+    FillOrder() : exchange_name(""), price(0.0), volume(0.0) {}
+
+    FillOrder(ExchangeName name, Price p, Volume v)
+    : exchange_name(std::move(name)), price(p), volume(v) {}
+};
 
 class ExecutionPlan 
 {
@@ -27,7 +38,7 @@ public:
                 OrderSide side,
                 Volume original_order_size);
 
-    void add_fill(const ExchangeName& exchange_name, Price price, Volume quantity);
+    void add_fill(FillOrder fill);
 
     const std::vector<FillOrder>& get_plan() const;
     Price get_total_fees() const;

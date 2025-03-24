@@ -8,6 +8,19 @@
 #include <functional>
 #include <memory>
 
+enum class RoutingAlgorithm 
+{
+    PURE_GREEDY,
+    HYBRID   
+};
+
+struct DPFill 
+{
+    ExchangeName exchange_name;
+    Price price;
+    Volume volume;
+};
+
 struct BestOrder {
     ExchangeName exchange_name;
     Price effective_price;
@@ -34,7 +47,12 @@ private:
     
     using Comparator = std::function<bool(const BestOrder&, const BestOrder&)>;
     
-    double get_largest_min_lot_size(
+    Volume get_largest_min_lot_size(
+        const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders) const;
+    
+    std::vector<FillOrder> solve_knapsack_problem(
+        Volume remaining_size, 
+        OrderSide side,
         const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders) const;
 
 public:
@@ -43,7 +61,7 @@ public:
     SmartOrderRouter(const SmartOrderRouter&) = delete;
     SmartOrderRouter& operator=(const SmartOrderRouter&) = delete;
     
-    ExecutionPlan distribute_order(Volume order_size, OrderSide m_side) const;
+    ExecutionPlan distribute_order(Volume order_size, OrderSide m_side, RoutingAlgorithm algorithm = RoutingAlgorithm::HYBRID) const;
 
     void print_remaining_liquidity() const;
 };
