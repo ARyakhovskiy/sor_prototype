@@ -1,4 +1,4 @@
-#include "../include/smartorderrouter.h"
+#include "smartorderrouter.h"
 
 constexpr double EPSILON = 1e-12;
 

@@ -1,46 +1,10 @@
-#include "../include/orderbook.h"
-#include "../include/smartorderrouter.h"
+#include "orderbook.h"
+#include "smartorderrouter.h"
+#include "utils.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <memory>
-
-void read_csv(const std::string& filename, OrderBook& order_book) 
-{
-    std::ifstream file(filename);
-
-    if (!file.is_open()) 
-    {
-        std::cerr << "Error: Could not open file " << filename << std::endl;
-        return;
-    }
-
-    std::string line;
-    std::getline(file, line); // Skip the header row
-
-    while (std::getline(file, line)) {
-        std::stringstream ss(line);
-        std::string price_str, volume_str, type;
-
-        std::getline(ss, price_str, ',');
-        std::getline(ss, volume_str, ',');
-        std::getline(ss, type, ',');
-
-        Price price = std::stod(price_str);
-        Volume volume = std::stod(volume_str);
-
-        if (type == "Bid") 
-        {
-            order_book.add_bid(price, volume);
-        }
-        else if (type == "Ask")
-        {
-            order_book.add_ask(price, volume);
-        }
-    }
-
-    file.close();
-}
 
 int main() 
 {
@@ -49,9 +13,9 @@ int main()
     auto okx = std::make_shared<OrderBook>("OKX", 0.0002, 0.001);       // 0.02% taker fee, 0.001 min order size
     auto uniswap = std::make_shared<OrderBook>("Uniswap", 0.003, 0.1);  // 0.3% taker fee, 0.1 min order size
 
-    read_csv("../data/snap2/binance_order_book.csv", *binance);
-    read_csv("../data/snap2/kucoin_order_book.csv", *kucoin);
-    read_csv("../data/snap2/okx_order_book.csv", *okx);
+    read_csv("/home/alexey/programming/cpp/smart_order_routing/data", *binance);
+    read_csv("/home/alexey/programming/cpp/smart_order_routing/data/snap2/kucoin_order_book.csv", *kucoin);
+    read_csv("/home/alexey/programming/cpp/smart_order_routing/data/snap2/okx_order_book.csv", *okx);
 
     // Print order books
     /*binance->print_order_book();
