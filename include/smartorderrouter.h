@@ -50,7 +50,7 @@ private:
     Volume get_largest_min_lot_size(
         const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders) const;
     
-    std::vector<FillOrder> solve_knapsack_problem(
+    std::vector<FillOrder> distribute_order_optimized(
         Volume remaining_size, 
         OrderSide side,
         const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders) const;
