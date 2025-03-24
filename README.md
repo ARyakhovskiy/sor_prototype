@@ -1,3 +1,34 @@
+# Smart Order Router
+
+## Требования
+- Компилятор C++17 (GCC 9+, Clang 10+ или MSVC 2019+)
+- CMake 3.10+
+- Git
+
+## Сборка проекта
+
+```bash
+# Клонировать репозиторий
+git clone https://github.com/ARyakhovskiy/sor_prototype.git
+cd sor_prototype
+
+# Конфигурация (по умолчанию Debug-сборка)
+cmake -B build -DCMAKE_BUILD_TYPE=Release 
+
+# Компиляция
+cmake --build build --parallel 4  # Можно изменить количество потоков
+
+# Запуск
+./build/smartorderrouter
+
+При запуске программа предложит ввести размер ордера (положительный для BUY, отрицательный для SELL)
+или одну из команд
+lq - вывод на экран оставшейся ликвидности
+exit - выход
+
+# Тесты
+./build/tests/order_book_tests
+
 # Диаграмма Классов
 
 ```mermaid
