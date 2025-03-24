@@ -30,7 +30,7 @@ struct BestOrder {
 
 class SmartOrderRouter {
 private:
-    std::unique_ptr<std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>> order_books;
+    std::unique_ptr<std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>> m_order_books;
     
     using Comparator = std::function<bool(const BestOrder&, const BestOrder&)>;
     
@@ -44,6 +44,8 @@ public:
     SmartOrderRouter& operator=(const SmartOrderRouter&) = delete;
     
     ExecutionPlan distribute_order(Volume order_size, bool is_buy) const;
+
+    void print_remaining_liquidity() const;
 };
 
 #endif // SMARTORDERROUTER_H

@@ -4,7 +4,7 @@
 constexpr double EPSILON = 1e-12;
 
 SmartOrderRouter::SmartOrderRouter(std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>> order_books)
-    : order_books(std::make_unique<std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>>(std::move(order_books))) {}
+    : m_order_books(std::make_unique<std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>>(std::move(order_books))) {}
 
 Price effective_price(Price original_price, bool is_buy, double fee)
 {
@@ -21,7 +21,7 @@ double SmartOrderRouter::get_largest_min_lot_size(
     while (!queue_copy.empty()) {
         const auto& order = queue_copy.top();
         if (seen_exchanges.insert(order.exchange_name).second) {
-            double min_size = order_books->at(order.exchange_name)->get_min_order_size();
+            double min_size = m_order_books->at(order.exchange_name)->get_min_order_size();
             largest_min = std::max(largest_min, min_size);
         }
         queue_copy.pop();
@@ -33,7 +33,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
 {
     // Create aliasing shared_ptr for order books
     auto order_books_ptr = std::shared_ptr<const std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>>(
-        order_books.get(),
+        m_order_books.get(),
         [](auto*) {} // No-op deleter
     );
     
@@ -59,7 +59,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
     std::cout << "Initial Order: Size = " << order_size << ", Type = " << (is_buy ? "Buy" : "Sell") << std::endl;
 
     // Initialize priority queue with best orders from each exchange
-    for (const auto& [exchange_name, order_book] : *order_books) 
+    for (const auto& [exchange_name, order_book] : *m_order_books) 
     {
         const auto& order_side = is_buy ? order_book->get_asks() : order_book->get_bids();
 
@@ -113,7 +113,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
                   << ", Fee = " << best_order.fee << std::endl;
 
         Volume fill_quantity = std::min(best_order.volume, remaining_size);
-        Volume min_order_size = order_books->at(best_order.exchange_name)->get_min_order_size();
+        Volume min_order_size = m_order_books->at(best_order.exchange_name)->get_min_order_size();
         fill_quantity = std::floor((fill_quantity / min_order_size) + EPSILON) * min_order_size;
 
         if (fill_quantity > 0) 
@@ -137,7 +137,7 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
         }
 
         // Update order book
-        auto& order_book = order_books->at(best_order.exchange_name);
+        auto& order_book = m_order_books->at(best_order.exchange_name);
         if (is_buy) {
             order_book->remove_top_ask();
         } else {
@@ -172,4 +172,73 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, bool is_buy)
     std::cout << "Total Fees Paid: " << std::fixed << std::setprecision(2) << execution_plan.get_total_fees() << std::endl;
 
     return execution_plan;
+}
+
+void SmartOrderRouter::print_remaining_liquidity() const
+{
+    std::cout << "\n=== Remaining Liquidity Across Exchanges ===" << std::endl;
+    
+    double total_buy_liquidity = 0.0;
+    double total_sell_liquidity = 0.0;
+    size_t total_buy_levels = 0;
+    size_t total_sell_levels = 0;
+
+    // Calculate and print buy-side (bids) liquidity
+    std::cout << "\nBuy-Side (Bids) Liquidity:" << std::endl;
+    for (const auto& [exchange_name, order_book] : *m_order_books) 
+    {
+        double exchange_bid_volume = 0.0;
+        const auto& bids = order_book->get_bids();
+        for (const auto& [price, volume] : bids) 
+        {
+            exchange_bid_volume += volume;
+        }
+        total_buy_liquidity += exchange_bid_volume;
+        total_buy_levels += bids.size();
+        
+        std::cout << std::left << std::setw(10) << exchange_name 
+                  << ": " << std::fixed << std::setprecision(5) << exchange_bid_volume
+                  << " units across " << bids.size() << " price levels" << std::endl;
+    }
+
+    // Calculate and print sell-side (asks) liquidity
+    std::cout << "\nSell-Side (Asks) Liquidity:" << std::endl;
+    for (const auto& [exchange_name, order_book] : *m_order_books) 
+    {
+        double exchange_ask_volume = 0.0;
+        const auto& asks = order_book->get_asks();
+        for (const auto& [price, volume] : asks) 
+        {
+            exchange_ask_volume += volume;
+        }
+        total_sell_liquidity += exchange_ask_volume;
+        total_sell_levels += asks.size();
+        
+        std::cout << std::left << std::setw(10) << exchange_name 
+                  << ": " << std::fixed << std::setprecision(8) << exchange_ask_volume
+                  << " units across " << asks.size() << " price levels" << std::endl;
+    }
+
+    // Print totals
+    std::cout << "\nTotal Liquidity:" << std::endl;
+    std::cout << "Buy-Side : " << std::fixed << std::setprecision(8) << total_buy_liquidity
+              << " units across " << total_buy_levels << " price levels" << std::endl;
+    std::cout << "Sell-Side: " << std::fixed << std::setprecision(8) << total_sell_liquidity
+              << " units across " << total_sell_levels << " price levels" << std::endl;
+
+    // Print best bids and asks
+    std::cout << "\nBest Available Prices:" << std::endl;
+    for (const auto& [exchange_name, order_book] : *m_order_books) 
+    {
+        auto best_bid = order_book->get_best_bid();
+        auto best_ask = order_book->get_best_ask();
+        
+        std::cout << std::left << std::setw(10) << exchange_name 
+                  << ": Best Bid = " << std::setw(10) << best_bid.first 
+                  << " (" << best_bid.second << " units)"
+                  << " | Best Ask = " << std::setw(10) << best_ask.first 
+                  << " (" << best_ask.second << " units)"
+                  << std::endl;
+    }
+    std::cout << "=======================================\n" << std::endl;
 }

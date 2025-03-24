@@ -5,6 +5,9 @@
 #include <sstream>
 #include <iostream>
 #include <memory>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 int main() 
 {
@@ -13,9 +16,14 @@ int main()
     auto okx = std::make_shared<OrderBook>("OKX", 0.0002, 0.001);       // 0.02% taker fee, 0.001 min order size
     auto uniswap = std::make_shared<OrderBook>("Uniswap", 0.003, 0.1);  // 0.3% taker fee, 0.1 min order size
 
-    read_csv("/home/alexey/programming/cpp/smart_order_routing/data", *binance);
-    read_csv("/home/alexey/programming/cpp/smart_order_routing/data/snap2/kucoin_order_book.csv", *kucoin);
-    read_csv("/home/alexey/programming/cpp/smart_order_routing/data/snap2/okx_order_book.csv", *okx);
+    // Get the current executable's directory
+    fs::path data_dir = fs::path(__FILE__).parent_path().parent_path() / "data";
+    
+    // Load order books using relative paths
+    read_csv((data_dir / "binance_order_book.csv").string(), *binance);
+    read_csv((data_dir / "kucoin_order_book.csv").string(), *kucoin);
+    read_csv((data_dir / "okx_order_book.csv").string(), *okx);
+
 
     // Print order books
     /*binance->print_order_book();
@@ -57,6 +65,9 @@ int main()
         ExecutionPlan execution_plan = router.distribute_order(std::abs(order_size), is_buy);
 
         execution_plan.print();
+
+        router.print_remaining_liquidity();
+
     }
 
 }
