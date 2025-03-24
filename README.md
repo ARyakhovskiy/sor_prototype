@@ -1,3 +1,76 @@
+```mermaid
+classDiagram
+    direction TB
+
+    %% Enums
+    class OrderSide {
+        <<enumeration>>
+        BUY
+        SELL
+    }
+
+    class RoutingAlgorithm {
+        <<enumeration>>
+        PURE_GREEDY
+        HYBRID
+    }
+
+    %% Data Structures
+    class FillOrder {
+        +exchange_name: ExchangeName
+        +price: Price
+        +volume: Volume
+    }
+
+    %% Main Classes
+    class OrderBook {
+        -m_bids: map~Price, Volume~
+        -m_asks: map~Price, Volume~
+        -m_exchange_name: ExchangeName
+        -m_taker_fee: double
+        -min_order_size: Volume
+        +add_bid(Price, Volume) void
+        +add_ask(Price, Volume) void
+        +reduce_bid_volume(Price, Volume) void
+        +reduce_ask_volume(Price, Volume) void
+        +get_best_bid() pair~Price, Volume~
+        +get_best_ask() pair~Price, Volume~
+        +get_taker_fee() double
+        +get_min_order_size() Volume
+    }
+
+    class ExecutionPlan {
+        -m_plan: vector~FillOrder~
+        -m_order_books: shared_ptr~OrderBooksMap~
+        -m_side: OrderSide
+        -m_original_order_size: Volume
+        +add_fill(FillOrder) void
+        +get_total_fees() Price
+        +get_total() Price
+        +get_average_effective_price() Price
+        +print() void
+    }
+
+    class SmartOrderRouter {
+        -m_order_books: unique_ptr~OrderBooksMap~
+        +distribute_order(Volume, OrderSide, RoutingAlgorithm) ExecutionPlan
+        +print_remaining_liquidity() void
+        -solve_knapsack_problem(Volume, OrderSide, priority_queue~BestOrder~) vector~FillOrder~
+        -get_largest_min_lot_size(priority_queue~BestOrder~) Volume
+    }
+
+    %% Relationships
+    OrderBook "1" --> "*" FillOrder : contains prices
+    SmartOrderRouter "1" --> "1..*" OrderBook : manages
+    SmartOrderRouter --> ExecutionPlan : generates
+    ExecutionPlan "1" --> "*" FillOrder : contains executions
+    SmartOrderRouter --> RoutingAlgorithm : uses
+    SmartOrderRouter --> OrderSide : uses
+
+    note for SmartOrderRouter "Implements hybrid algorithm:\n1. Greedy for bulk fills\n2. Branch-and-bound for residuals"
+    note for OrderBook "Maps auto-sort prices:\n- Bids: descending\n- Asks: ascending"
+```
+
 Класс для хранения книги заявок биржи содержит в себе 2 `std::map<Price, Volume>` для Bids и Asks. Для эффективности и простоты реализации жадного алгоритма было бы удобнее загружать все заявки одного типа в общий `std::map<>`, однако для других компонент подобной системы может быть предпочтительно хранение заявок с разных бирж по отдельности. `std::map<>` автоматически сортирует записи при добавлении, что будет полезным для нашего алгоритма. Заявки с одинаковой ценой агрегируются в общий ценовой уровень.
 
 Алгоритм представляет собой комбинацию жадного алгоритма и метода ветвей и границ. Алгоритм строился с предположением о том, что размер любого исполняемой заявки должен быть кратен минимальному размеру заявки (МРЗ) на соответствующей бирже. Жадный алгоритм реализован при помощи `std::priority_queue<> best_orders`, которая содержит в себе "лучшие" (с наименьшей ценой для Buy-ордера, с наибольшей ценой для Sell-ордера) ценовые уровни с каждой из бирж. На каждом шаге алгоритм выполняет максимальный возможный (кратный МРЗ) объем из лучшей заявки в очереди. Если после этого полный объем ордера ещё не выполнен, то мы:
