@@ -28,8 +28,9 @@ exit - выход
 
 # Тесты
 ./build/tests/order_book_tests
+```
 
-# Диаграмма Классов
+## Диаграмма Классов
 
 ```mermaid
 classDiagram
