@@ -15,7 +15,7 @@
 
 
 struct BestOrder {
-    std::string exchange_name;
+    ExchangeName exchange_name;
     Price effective_price;
     Volume volume;
     Price original_price; 
@@ -41,7 +41,7 @@ struct BestOrder {
 class SmartOrderRouter 
 {
 private:
-    std::unordered_map<std::string, std::shared_ptr<OrderBook>> order_books; // Maps exchange name to OrderBook;
+    std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>> order_books; // Maps exchange name to OrderBook;
 
 public:
     // Constructor
@@ -49,8 +49,10 @@ public:
 
     // Move constructor
     SmartOrderRouter(SmartOrderRouter&& other) noexcept;
-    // Function to distribute an order across exchanges
+    // Greedy distribution method
     ExecutionPlan distribute_order(Volume order_size, bool is_buy) const;
+    // Dynamic programming order distribution method
+    ExecutionPlan distribute_order_dp(Volume order_size, bool is_buy) const;
 };
 
 #endif // SMARTORDERROUTER_H

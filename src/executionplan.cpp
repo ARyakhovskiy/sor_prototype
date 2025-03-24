@@ -41,7 +41,6 @@ Price ExecutionPlan::get_total() const
     return total;
 }
 
-// Compute and get average effective price
 Price ExecutionPlan::get_average_effective_price() const 
 {
     Volume total_quantity = 0.0;
@@ -73,7 +72,6 @@ double ExecutionPlan::get_fulfillment_percentage() const
     }
 }
 
-// Print the execution plan and metrics
 void ExecutionPlan::print() const 
 {
     std::cout << "Execution Plan:" << std::endl;

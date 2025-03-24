@@ -3,23 +3,23 @@
 
 // Constructor
 OrderBook::OrderBook(const std::string& exchange_name, double taker_fee, double min_order_size)
-    : exchange_name(exchange_name), taker_fee(taker_fee), min_order_size(min_order_size) {}
+    : m_exchange_name(exchange_name), m_taker_fee(taker_fee), min_order_size(min_order_size) {}
 
 void OrderBook::add_bid(Price price, Volume volume) 
 {
-    bids[price] += volume; // Aggregate volumes at the same price
+    m_bids[price] += volume; // Aggregate volumes at the same price
 }
 
 void OrderBook::add_ask(Price price, Volume volume) 
 {
-    asks[price] += volume; // Aggregate volumes at the same price
+    m_asks[price] += volume; // Aggregate volumes at the same price
 }
 
 void OrderBook::remove_top_bid() 
 {
-    if (!bids.empty()) 
+    if (!m_bids.empty()) 
     {
-        bids.erase(--bids.end());
+        m_bids.erase(--m_bids.end());
     } else 
     {
         throw std::runtime_error("No bids available to remove.");
@@ -27,9 +27,9 @@ void OrderBook::remove_top_bid()
 }
 
 void OrderBook::remove_top_ask() {
-    if (!asks.empty()) 
+    if (!m_asks.empty()) 
     {
-        asks.erase(asks.begin());
+        m_asks.erase(m_asks.begin());
     }
     else 
     {
@@ -39,23 +39,23 @@ void OrderBook::remove_top_ask() {
 
 std::pair<Price, Volume> OrderBook::get_best_bid() const 
 {
-    if (bids.empty()) 
+    if (m_bids.empty()) 
     {
         return {0.0, 0.0}; // No bids available
     }
-    return *bids.rbegin(); // Last element in the map
+    return *m_bids.rbegin();
 }
 
 std::pair<Price, Volume> OrderBook::get_best_ask() const {
-    if (asks.empty()) 
+    if (m_asks.empty()) 
     {
         return {0.0, 0.0}; // No asks available
     }
-    return *asks.begin(); // First element in the map
+    return *m_asks.begin(); // First element in the map
 }
 
 double OrderBook::get_taker_fee() const {
-    return taker_fee;
+    return m_taker_fee;
 }
 
 double OrderBook::get_min_order_size() const {
@@ -63,30 +63,31 @@ double OrderBook::get_min_order_size() const {
 }
 
 const std::map<Price, Volume>& OrderBook::get_bids() const {
-    return bids;
+    return m_bids;
 }
 
 const std::map<Price, Volume>& OrderBook::get_asks() const {
-    return asks;
+    return m_asks;
 }
 
-std::string OrderBook::get_exchange_name() const {
-    return exchange_name;
+const ExchangeName OrderBook::get_exchange_name() const 
+{
+    return m_exchange_name;
 }
 
-// Function to print the order book
-void OrderBook::print_order_book() const {
-    std::cout << "Order Book for " << exchange_name << ":" << std::endl;
-    std::cout << "Taker Fee: " << taker_fee * 100 << "%" << std::endl;
+void OrderBook::print_order_book() const 
+{
+    std::cout << "Order Book for " << m_exchange_name << ":" << std::endl;
+    std::cout << "Taker Fee: " << m_taker_fee * 100 << "%" << std::endl;
     std::cout << "Minimum Order Size: " << min_order_size << std::endl;
 
     std::cout << "Bids:" << std::endl;
-    for (auto it = bids.rbegin(); it != bids.rend(); ++it) {
+    for (auto it = m_bids.rbegin(); it != m_bids.rend(); ++it) {
         std::cout << "Price: " << it->first << ", Volume: " << it->second << std::endl;
     }
 
     std::cout << "Asks:" << std::endl;
-    for (const auto& entry : asks) {
+    for (const auto& entry : m_asks) {
         std::cout << "Price: " << entry.first << ", Volume: " << entry.second << std::endl;
     }
 

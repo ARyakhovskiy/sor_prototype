@@ -24,6 +24,9 @@ public:
                 bool is_buy,
                 double original_order_size);
 
+    // Add a fill to the execution plan
+    void add_fill(const std::string& exchange_name, double price, double quantity);
+
     const std::vector<std::pair<std::string, std::pair<Price, Volume>>>& get_plan() const;
     Price get_total_fees() const;
 
