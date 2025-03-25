@@ -15,7 +15,7 @@ cd sor_prototype
 cmake -B build -DCMAKE_BUILD_TYPE=Release 
 
 # Компиляция
-cmake --build build --parallel 4  # Можно изменить количество потоков
+cmake --build build
 
 # Запуск
 ./build/smartorderrouter
