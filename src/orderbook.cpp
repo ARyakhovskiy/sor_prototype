@@ -26,7 +26,8 @@ void OrderBook::remove_top_bid()
     }
 }
 
-void OrderBook::remove_top_ask() {
+void OrderBook::remove_top_ask() 
+{
     if (!m_asks.empty()) 
     {
         m_asks.erase(m_asks.begin());
@@ -46,7 +47,8 @@ std::pair<Price, Volume> OrderBook::get_best_bid() const
     return *m_bids.rbegin();
 }
 
-std::pair<Price, Volume> OrderBook::get_best_ask() const {
+std::pair<Price, Volume> OrderBook::get_best_ask() const 
+{
     if (m_asks.empty()) 
     {
         return {0.0, 0.0}; // No asks available
@@ -54,19 +56,23 @@ std::pair<Price, Volume> OrderBook::get_best_ask() const {
     return *m_asks.begin(); // First element in the map
 }
 
-double OrderBook::get_taker_fee() const {
+double OrderBook::get_taker_fee() const 
+{
     return m_taker_fee;
 }
 
-double OrderBook::get_min_order_size() const {
+double OrderBook::get_min_order_size() const 
+{
     return min_order_size;
 }
 
-const std::map<Price, Volume>& OrderBook::get_bids() const {
+const std::map<Price, Volume>& OrderBook::get_bids() const 
+{
     return m_bids;
 }
 
-const std::map<Price, Volume>& OrderBook::get_asks() const {
+const std::map<Price, Volume>& OrderBook::get_asks() const 
+{
     return m_asks;
 }
 
@@ -120,12 +126,14 @@ void OrderBook::print_order_book() const
     std::cout << "Minimum Order Size: " << min_order_size << std::endl;
 
     std::cout << "Bids:" << std::endl;
-    for (auto it = m_bids.rbegin(); it != m_bids.rend(); ++it) {
+    for (auto it = m_bids.rbegin(); it != m_bids.rend(); ++it) 
+    {
         std::cout << "Price: " << it->first << ", Volume: " << it->second << std::endl;
     }
 
     std::cout << "Asks:" << std::endl;
-    for (const auto& entry : m_asks) {
+    for (const auto& entry : m_asks) 
+    {
         std::cout << "Price: " << entry.first << ", Volume: " << entry.second << std::endl;
     }
 

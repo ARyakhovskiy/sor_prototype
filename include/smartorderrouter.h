@@ -34,39 +34,38 @@ struct BestOrder {
     Price original_price;
     double fee;
     
-    struct BuyComparator {
-        bool operator()(const BestOrder& a, const BestOrder& b) const {
+    struct BuyComparator 
+    {
+        bool operator()(const BestOrder& a, const BestOrder& b) const 
+        {
             return a.effective_price > b.effective_price;
         }
     };
     
-    struct SellComparator {
-        bool operator()(const BestOrder& a, const BestOrder& b) const {
+    struct SellComparator 
+    {
+        bool operator()(const BestOrder& a, const BestOrder& b) const 
+        {
             return a.effective_price < b.effective_price;
         }
     };
 };
 
-class SmartOrderRouter {
+class SmartOrderRouter 
+{
 private:
     std::unique_ptr<std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>>> m_order_books;
     
     using Comparator = std::function<bool(const BestOrder&, const BestOrder&)>;
     
-    Volume get_largest_min_lot_size(
-        const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders) const;
-    
-    std::vector<FillOrder> distribute_order_optimized(
-        Volume remaining_size, 
-        OrderSide side,
-        const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders) const;
+    Volume get_largest_min_lot_size(const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders) const;
+    std::vector<FillOrder> distribute_order_optimized(Volume remaining_size, OrderSide side, const std::priority_queue<BestOrder, std::vector<BestOrder>, Comparator>& best_orders) const;
 
 public:
     SmartOrderRouter(std::unordered_map<ExchangeName, std::shared_ptr<OrderBook>> order_books);
     SmartOrderRouter(SmartOrderRouter&& other) noexcept = default;
     SmartOrderRouter(const SmartOrderRouter&) = delete;
     SmartOrderRouter& operator=(const SmartOrderRouter&) = delete;
-    
     ExecutionPlan distribute_order(Volume order_size, OrderSide m_side, RoutingAlgorithm algorithm = RoutingAlgorithm::HYBRID) const;
 
     void print_remaining_liquidity() const;

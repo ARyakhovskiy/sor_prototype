@@ -16,7 +16,8 @@ void read_csv(const std::string& filename, OrderBook& order_book)
     std::string line;
     std::getline(file, line); // Skip the header row
 
-    while (std::getline(file, line)) {
+    while (std::getline(file, line)) 
+    {
         std::stringstream ss(line);
         std::string price_str, volume_str, type;
 
