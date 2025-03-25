@@ -13,7 +13,7 @@ include_directories(
 )
 
 # Add the main executable
-add_executable(smart_order_routing 
+add_executable(smartorderrouter
     src/main.cpp
     src/orderbook.cpp
     src/smartorderrouter.cpp
