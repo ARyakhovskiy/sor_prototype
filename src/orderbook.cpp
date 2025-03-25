@@ -81,7 +81,7 @@ void OrderBook::reduce_bid_volume(Price price, Volume reduction)
     if (it != m_bids.end()) 
     {
         it->second -= reduction;
-        if (it->second <= 0.0) 
+        if (it->second <= min_order_size) 
         {
             m_bids.erase(it);  // Remove if volume depleted
         }
@@ -94,7 +94,7 @@ void OrderBook::reduce_ask_volume(Price price, Volume reduction)
     if (it != m_asks.end()) 
     {
         it->second -= reduction;
-        if (it->second <= 0.0) 
+        if (it->second <= min_order_size) 
         {
             m_asks.erase(it);  // Remove if volume depleted
         }
