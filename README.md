@@ -11,8 +11,11 @@
 git clone https://github.com/ARyakhovskiy/sor_prototype.git
 cd sor_prototype
 
-# (по умолчанию -DCMAKE_BUILD_TYPE=Debug)
-cmake -B build -DCMAKE_BUILD_TYPE=Release 
+# Конфигурация
+cmake -B build -DCMAKE_BUILD_TYPE=Release  # or Debug
+
+# Сборка
+cmake --build build --target smartorderrouter
 
 # Запуск
 ./build/smartorderrouter
