@@ -107,7 +107,6 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
                 remaining_size - fill_quantity < largest_min_lot_size) 
             {               
                 std::vector<FillOrder> optimized_fills = distribute_order_optimized(remaining_size, side, best_orders);
-                std::reverse(optimized_fills.begin(), optimized_fills.end()); 
                 for (const FillOrder& fill : optimized_fills)
                 {
                     execution_plan.add_fill(fill);
