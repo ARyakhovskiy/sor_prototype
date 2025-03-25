@@ -26,7 +26,7 @@ lq - вывод на экран оставшейся ликвидности
 exit - выход
 
 # Тесты
-./build/tests/order_book_tests
+./build/tests/sor_tests
 ```
 
 ## Диаграмма Классов
