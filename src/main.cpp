@@ -49,12 +49,25 @@ int main()
             continue;
         }
     
-        try {
+        try 
+        {
             double order_size = std::stod(input);
             if (order_size == 0) continue;
-    
+
+            char algorithm_choice;
+            do 
+            {
+                std::cout << "Choose algorithm - [G]reedy or [H]ybrid (G/H): ";
+                std::cin >> algorithm_choice;
+                algorithm_choice = static_cast<char>(toupper(algorithm_choice));
+            } while (algorithm_choice != 'G' && algorithm_choice != 'H');
+
+            RoutingAlgorithm algorithm = (algorithm_choice == 'G') 
+                ? RoutingAlgorithm::PURE_GREEDY 
+                : RoutingAlgorithm::HYBRID;
+   
             OrderSide side = (order_size > 0) ? OrderSide::BUY : OrderSide::SELL;
-            ExecutionPlan execution_plan = router.distribute_order(std::abs(order_size), side);
+            ExecutionPlan execution_plan = router.distribute_order(std::abs(order_size), side, algorithm);
             execution_plan.print();
         } catch (...) {
             std::cerr << "Invalid input. Please enter a number or command.\n";
