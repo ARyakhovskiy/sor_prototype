@@ -9,9 +9,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 # Add the test executable
-add_executable(order_book_tests test.cpp ../src/orderbook.cpp ../src/smartorderrouter.cpp ../src/executionplan.cpp ../src/utils.cpp)
-target_link_libraries(order_book_tests gtest_main)
+add_executable(sor_tests test.cpp ../src/orderbook.cpp ../src/smartorderrouter.cpp ../src/executionplan.cpp ../src/utils.cpp)
+target_link_libraries(sor_tests gtest_main)
 
 # Enable testing
 enable_testing()
-add_test(NAME order_book_tests COMMAND order_book_tests)
+add_test(NAME sor_tests COMMAND order_book_tests)
