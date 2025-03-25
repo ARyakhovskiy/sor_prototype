@@ -107,7 +107,8 @@ ExecutionPlan SmartOrderRouter::distribute_order(Volume order_size, OrderSide si
                 remaining_size - fill_quantity < largest_min_lot_size) 
             {               
                 std::vector<FillOrder> optimized_fills = distribute_order_optimized(remaining_size, side, best_orders);
-                for (const FillOrder& fill : optimized_fills) 
+                std::reverse(optimized_fills.begin(), optimized_fills.end()); 
+                for (const FillOrder& fill : optimized_fills)
                 {
                     execution_plan.add_fill(fill);
                     remaining_size -= fill.volume;
@@ -321,6 +322,31 @@ std::vector<FillOrder> SmartOrderRouter::distribute_order_optimized(Volume remai
         backtrack(0, 0.0, 0.0, current);
         total_cost = best_cost;
     }
+
+    // Aggregate fills from same exchange and price level (for output)
+    std::map<std::pair<ExchangeName, Price>, Volume> aggregated;
+    for (const auto& fill : solution) 
+    {
+        auto key = std::make_pair(fill.exchange_name, fill.price);
+        aggregated[key] += fill.volume;
+    }
+
+    solution.clear();
+    for (const auto& [key, volume] : aggregated) 
+    {
+        solution.emplace_back(key.first, key.second, volume);
+    }
+
+    // Sort by effective price (for output)
+    std::sort(solution.begin(), solution.end(),
+        [this, side](const FillOrder& a, const FillOrder& b) 
+        {
+            double fee_a = m_order_books->at(a.exchange_name)->get_taker_fee();
+            double fee_b = m_order_books->at(b.exchange_name)->get_taker_fee();
+            Price eff_a = (side == OrderSide::BUY) ? a.price * (1 + fee_a) : a.price * (1 - fee_a);
+            Price eff_b = (side == OrderSide::BUY) ? b.price * (1 + fee_b) : b.price * (1 - fee_b);
+            return (side == OrderSide::BUY) ? (eff_a < eff_b) : (eff_a > eff_b);
+        });
 
     #ifdef DEBUG_MODE
         // Print results
